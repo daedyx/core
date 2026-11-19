@@ -1,4 +1,4 @@
-//! SQL der Kern-Stände. Stand 1 = Desk-Migration 7 (Listen, Aufgaben, Verlauf), Stand 2 = Desk-Migration 8 (Abschnitte).
+//! SQL der Kern-Stände. Stand 1 = Desk-Migration 7 (Listen, Aufgaben, Verlauf), Stand 2 = Desk-Migration 8 (Abschnitte), Stand 3 = Farben, Verweise, Heimat (K2).
 //! **Wortgleiche Kopie** der Desk-Texte; ein Test in Desk (`schema_tasks_core_tests`) vergleicht beide Wege.
 
 /// Stand 1: `task_lists`, `tasks`, `task_completions`, `task_alarms_fired`, `task_meta`.
@@ -81,4 +81,13 @@ CREATE INDEX idx_task_sections_list ON task_sections (list_id, position);
 
 ALTER TABLE tasks ADD COLUMN section_id TEXT NULL REFERENCES task_sections(id) ON DELETE SET NULL;
 CREATE INDEX idx_tasks_section ON tasks (section_id);
+";
+
+/// Stand 3: Farben (`#RRGGBB` oder NULL = Standard), Verweise (JSON-Liste), Heimat-App und Umzugszeitpunkt der Liste.
+pub const STAND_3: &str = "
+ALTER TABLE task_sections ADD COLUMN color TEXT NULL;
+ALTER TABLE tasks ADD COLUMN color TEXT NULL;
+ALTER TABLE tasks ADD COLUMN links TEXT NULL;
+ALTER TABLE task_lists ADD COLUMN home TEXT NULL;
+ALTER TABLE task_lists ADD COLUMN moved_at INTEGER NULL;
 ";
