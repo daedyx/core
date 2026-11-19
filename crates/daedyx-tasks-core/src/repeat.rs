@@ -4,10 +4,11 @@ use super::types::{RepeatKind, RepeatRule};
 use chrono::{Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Weekday};
 use chrono_tz::Tz;
 
-fn add_months(d: NaiveDate, months: u32) -> NaiveDate {
+/// `anchor`: fester Tag des Monats; ohne ihn zählt der Tag von `d` (und rutscht nach kurzen Monaten nach unten).
+fn add_months(d: NaiveDate, months: u32, anchor: Option<u8>) -> NaiveDate {
     let total = d.year() * 12 + d.month0() as i32 + months as i32;
     let (y, m) = (total.div_euclid(12), total.rem_euclid(12) as u32 + 1);
-    let mut day = d.day();
+    let mut day = anchor.map_or(d.day(), |a| a.clamp(1, 31) as u32);
     loop {
         if let Some(n) = NaiveDate::from_ymd_opt(y, m, day) {
             return n;
@@ -37,8 +38,8 @@ pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> NaiveDate {
                 d += Duration::days(1);
             }
         }
-        RepeatKind::Monthly => add_months(base, n),
-        RepeatKind::Yearly => add_months(base, 12 * n),
+        RepeatKind::Monthly => add_months(base, n, rule.month_day),
+        RepeatKind::Yearly => add_months(base, 12 * n, rule.month_day),
     }
 }
 
