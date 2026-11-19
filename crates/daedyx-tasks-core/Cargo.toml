@@ -3,6 +3,7 @@ name = "daedyx-tasks-core"
 description = "Daedyx Aufgaben-Kern: Modell, Schema, Abgleich, Wiederholung, Smart-Listen (ohne Oberfläche, ohne eigene Datenbank)"
 edition.workspace = true
 version.workspace = true
+license = "MIT"
 
 [dependencies]
 # Ohne Backend-Feature: SQLCipher oder SQLite stellt die App ein.
