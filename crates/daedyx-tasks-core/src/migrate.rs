@@ -56,10 +56,14 @@ fn detect(conn: &Connection) -> Result<i64, MigrateError> {
                 return Err(MigrateError::BadVersion(s));
             }
             // Der gespeicherte Stand muss zum Tabellenbestand passen, sonst nicht still bestätigen.
+            // Konsistenz nur für Stände, die dieser Kern kennt; neuere meldet `run` als `TooNew`.
+            if v > SCHEMA_VERSION {
+                return Ok(v);
+            }
             if v >= 2 && !has_table(conn, "task_sections")? {
                 return Err(MigrateError::Inconsistent { stored: v });
             }
-            if v >= 3 && !has_column(conn, "tasks", "links")? {
+            if v >= 3 && !(has_column(conn, "tasks", "links")? && has_table(conn, "task_alarms")?) {
                 return Err(MigrateError::Inconsistent { stored: v });
             }
             return Ok(v);

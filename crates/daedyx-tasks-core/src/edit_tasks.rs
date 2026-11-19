@@ -102,6 +102,9 @@ pub fn create_task(
         changes.push(("section_id", json!(section)));
     }
     apply(conn, &TASKS, &id, &changes, now_ms)?;
+    if let Some(Value::Number(m)) = fields.get("remind_minutes") {
+        super::edit_alarms::set_alarms(conn, &id, &[m.as_i64().unwrap_or_default()], now_ms)?;
+    }
     store::task(conn, &id)
 }
 
@@ -117,6 +120,10 @@ pub fn update_task(conn: &Connection, id: &str, patch: &Map<String, Value>, now_
         changes.push((name, check(name, v)?));
     }
     apply(conn, &TASKS, id, &changes, now_ms)?;
+    if let Some(v) = patch.get("remind_minutes") {
+        let one: Vec<i64> = v.as_i64().into_iter().collect();
+        super::edit_alarms::set_alarms(conn, id, &one, now_ms)?;
+    }
     store::task(conn, id)
 }
 

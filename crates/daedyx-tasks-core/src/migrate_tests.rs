@@ -34,7 +34,7 @@ fn a_fresh_database_gets_all_tables_and_the_current_stand() {
     let c = conn();
     migrate(&c).unwrap();
     let t = tables(&c);
-    for name in ["task_lists", "tasks", "task_completions", "task_alarms_fired", "task_meta", "task_sections"] {
+    for name in ["task_lists", "tasks", "task_completions", "task_alarms_fired", "task_meta", "task_sections", "task_alarms"] {
         assert!(t.contains(&name.to_string()), "{name} fehlt");
     }
     assert_eq!(stored_version(&c), Some(SCHEMA_VERSION.to_string()));
@@ -163,6 +163,7 @@ fn stand_2_is_lifted_to_3_keeping_rows_and_adding_empty_columns() {
     let (home, moved): (Option<String>, Option<i64>) =
         c.query_row("SELECT home, moved_at FROM task_lists", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
     assert_eq!((home, moved), (None, None));
+    assert!(tables(&c).contains(&"task_alarms".to_string()));
     assert_eq!(stored_version(&c), Some("3".into()));
 }
 
@@ -170,7 +171,7 @@ fn stand_2_is_lifted_to_3_keeping_rows_and_adding_empty_columns() {
 fn stand_3_applied_by_hand_is_the_same_as_the_migration() {
     let cols = |c: &Connection| -> Vec<String> {
         let mut out = Vec::new();
-        for t in ["task_lists", "task_sections", "tasks"] {
+        for t in ["task_lists", "task_sections", "tasks", "task_alarms"] {
             let mut s = c.prepare(&format!("SELECT name, type FROM pragma_table_info('{t}') ORDER BY name")).unwrap();
             out.extend(s.query_map([], |r| Ok(format!("{t}.{}:{}", r.get::<_, String>(0)?, r.get::<_, String>(1)?))).unwrap().map(|r| r.unwrap()));
         }

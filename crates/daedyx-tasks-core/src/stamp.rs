@@ -24,6 +24,7 @@ pub const TASKS: Table = Table {
         "repeat_rule", "remind_minutes", "assignee_id", "created_by", "color", "links", "deleted_at",
     ],
 };
+pub const ALARMS: Table = Table { name: "task_alarms", fields: &["task_id", "minutes_before", "deleted_at"] };
 pub const COMPLETIONS: Table = Table { name: "task_completions", fields: &["task_id", "done_at", "due_was", "deleted_at"] };
 
 fn to_sql(v: &Value) -> Sql {

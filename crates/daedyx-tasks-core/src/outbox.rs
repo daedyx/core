@@ -4,7 +4,7 @@
 use super::errors::TaskError;
 use super::merge::{merge, Record};
 use super::meta;
-use super::stamp::{Table, COMPLETIONS, LISTS, SECTIONS, TASKS};
+use super::stamp::{Table, ALARMS, COMPLETIONS, LISTS, SECTIONS, TASKS};
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub struct Change {
 }
 
 /// Reihenfolge so, dass Fremdschlüssel beim Einspielen schon da sind.
-const TABLES: [&Table; 4] = [&LISTS, &SECTIONS, &TASKS, &COMPLETIONS];
+const TABLES: [&Table; 5] = [&LISTS, &SECTIONS, &TASKS, &ALARMS, &COMPLETIONS];
 
 fn table_by_name(name: &str) -> Result<&'static Table, TaskError> {
     TABLES.iter().copied().find(|t| t.name == name).ok_or(TaskError::Invalid("table"))
@@ -53,7 +53,7 @@ fn read(conn: &Connection, table: &Table, id: &str) -> Result<Option<Record>, Ta
         .optional()?)
 }
 
-/// Alle noch nicht abgeglichenen Zeilen (auch Grabsteine) als Änderungen, Listen vor Abschnitten vor Aufgaben vor Verlauf.
+/// Alle noch nicht abgeglichenen Zeilen (auch Grabsteine) als Änderungen, Listen vor Abschnitten vor Aufgaben vor Erinnerungen vor Verlauf.
 pub fn export_dirty(conn: &Connection) -> Result<Vec<Change>, TaskError> {
     let mut out = Vec::new();
     for table in TABLES {
@@ -94,6 +94,10 @@ fn ensure_row(conn: &Connection, table: &Table, c: &Change, now: i64) -> Result<
         "tasks" => conn.execute(
             "INSERT OR IGNORE INTO tasks (id, list_id, title, updated_at) VALUES (?1, ?2, '', ?3)",
             (&c.id, text("list_id"), now),
+        )?,
+        "task_alarms" => conn.execute(
+            "INSERT OR IGNORE INTO task_alarms (id, task_id, updated_at) VALUES (?1, ?2, ?3)",
+            (&c.id, text("task_id"), now),
         )?,
         _ => conn.execute(
             "INSERT OR IGNORE INTO task_completions (id, task_id, done_at, updated_at) VALUES (?1, ?2, 0, ?3)",
@@ -160,3 +164,6 @@ mod sections_tests;
 #[cfg(test)]
 #[path = "outbox_stand3_tests.rs"]
 mod stand3_tests;
+#[cfg(test)]
+#[path = "outbox_alarms_tests.rs"]
+mod alarms_tests;
