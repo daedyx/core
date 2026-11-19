@@ -15,6 +15,8 @@ pub enum MigrateError {
     TooNew { found: i64, supported: i64 },
     #[error("Gespeicherter Schema-Stand der Aufgaben ist unlesbar: {0}")]
     BadVersion(String),
+    #[error("Gespeicherter Stand {stored} passt nicht zu den vorhandenen Aufgaben-Tabellen")]
+    Inconsistent { stored: i64 },
     #[error("Datenbank: {0}")]
     Sqlite(#[from] rusqlite::Error),
 }
@@ -45,7 +47,15 @@ fn detect(conn: &Connection) -> Result<i64, MigrateError> {
         let stored: Option<String> =
             conn.query_row("SELECT value FROM task_meta WHERE key = 'schema_version'", [], |r| r.get(0)).optional()?;
         if let Some(s) = stored {
-            return s.parse().map_err(|_| MigrateError::BadVersion(s));
+            let v: i64 = s.parse().map_err(|_| MigrateError::BadVersion(s.clone()))?;
+            if v < 1 {
+                return Err(MigrateError::BadVersion(s));
+            }
+            // Der gespeicherte Stand muss zum Tabellenbestand passen, sonst nicht still bestätigen.
+            if v >= 2 && !has_table(conn, "task_sections")? {
+                return Err(MigrateError::Inconsistent { stored: v });
+            }
+            return Ok(v);
         }
     }
     Ok(if !has_table(conn, "task_lists")? {

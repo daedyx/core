@@ -120,3 +120,23 @@ fn a_failing_step_leaves_the_database_as_it_was() {
     // Die Verbindung ist danach nicht in einer offenen Transaktion hängen geblieben.
     assert!(c.is_autocommit());
 }
+
+#[test]
+fn a_stored_stand_without_its_tables_is_not_accepted_silently() {
+    let c = conn();
+    c.execute_batch(STAND_1).unwrap();
+    c.execute("INSERT INTO task_meta (key, value) VALUES ('schema_version', '2')", []).unwrap();
+    assert!(matches!(migrate(&c).unwrap_err(), MigrateError::Inconsistent { stored: 2 }));
+    assert!(!tables(&c).contains(&"task_sections".to_string()), "nichts wird nachgebaut oder geändert");
+    assert_eq!(stored_version(&c), Some("2".into()));
+}
+
+#[test]
+fn stored_stands_below_one_are_bad_versions() {
+    for bad in ["0", "-5"] {
+        let c = conn();
+        migrate(&c).unwrap();
+        c.execute("UPDATE task_meta SET value = ?1 WHERE key = 'schema_version'", [bad]).unwrap();
+        assert!(matches!(migrate(&c).unwrap_err(), MigrateError::BadVersion(_)), "{bad}");
+    }
+}
