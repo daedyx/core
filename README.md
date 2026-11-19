@@ -9,11 +9,15 @@ Gemeinsamer Rust-Kern der Daedyx-Suite (Cargo-Workspace).
 |---|---|
 | 1 | Listen, Aufgaben, Verlauf, Erinnerungs-Merker, Meta (bis dahin Desk-Migration 7) |
 | 2 | Abschnitte (`task_sections`, `tasks.section_id`; bis dahin Desk-Migration 8) |
-| 3 | Farben (`task_sections.color`, `tasks.color`, `#RRGGBB` oder NULL), `tasks.links` (JSON-Liste `{app, kind, ref, title}`), `task_lists.home` (`desk`/`tasks`/NULL), `task_lists.moved_at` (UTC-Sekunden). Alle gestempelt. |
+| 3 | Farben (`task_sections.color`, `tasks.color`, `#RRGGBB` oder NULL), `tasks.links` (JSON-Liste `{app, kind, ref, title}`), `task_lists.home` (`desk`/`tasks`/NULL), `task_lists.moved_at` (UTC-Sekunden), Tabelle `task_alarms` (mehrere Erinnerungen je Aufgabe, `edit_alarms::set_alarms`; `tasks.remind_minutes` bleibt die erste). Alle gestempelt. |
 
 **Regel:** Jede Erhöhung von `SCHEMA_VERSION` braucht in Desk eine neue Migration mit demselben Aufruf plus Wächtertest.
 
 `daedyx_tasks_core::migrate(&conn)` legt frisch an oder hebt an, erkennt Desk-Bestand ohne gespeicherten Stand an den Tabellen, lehnt neuere Stände ab (`TooNew`) und läuft in einem `SAVEPOINT` (auch innerhalb einer fremden Transaktion).
+
+## Ohne Schema-Erhöhung (Logik)
+- **Monatstag-Anker:** `RepeatRule.month_day` (JSON `monthDay`, 1–31) für monatlich/jährlich; kurze Monate nehmen den letzten Tag, der Anker bleibt. Ohne Anker altes Verhalten.
+- **Unterbaum:** `tree.rs` (`depth_of`, `height_of`, `descendants`), `create_task_depth`/`move_task_depth` mit `max_depth` (Zyklusprüfung, TooDeep). `create_task`/`move_task` nutzen `DESK_MAX_DEPTH = 1`. Löschen und Listenwechsel erfassen alle Nachfahren; Abgleich (Export und Import) ordnet nach Tiefe.
 
 ## Prüfen
 ```
