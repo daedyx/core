@@ -24,6 +24,16 @@ pub struct RepeatRule {
     pub from_done: bool,
 }
 
+/// Verweis einer Aufgabe auf etwas in einer Daedyx-App (z. B. eine Mail in Desk).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Link {
+    pub app: String,
+    pub kind: String,
+    pub r#ref: String,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskList {
@@ -33,6 +43,10 @@ pub struct TaskList {
     pub position: f64,
     /// Für die spätere Zusammenarbeit vorbereitet, heute immer `None`.
     pub owner_id: Option<String>,
+    /// Heimat-App der Liste (`desk`/`tasks`); `None` = Standard.
+    pub home: Option<String>,
+    /// Zeitpunkt (UTC-Sekunden) des letzten Umzugs in eine andere Heimat.
+    pub moved_at: Option<i64>,
 }
 
 /// Abschnitt (Spalte im Board) einer Liste.
@@ -43,6 +57,8 @@ pub struct Section {
     pub list_id: String,
     pub name: String,
     pub position: f64,
+    /// `#RRGGBB`; `None` = Standard laut Design.
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -67,6 +83,9 @@ pub struct Task {
     /// Für die spätere Zusammenarbeit vorbereitet, heute immer `None`.
     pub assignee_id: Option<String>,
     pub created_by: Option<String>,
+    /// `#RRGGBB`; `None` = Standard laut Design.
+    pub color: Option<String>,
+    pub links: Vec<Link>,
 }
 
 #[cfg(test)]
@@ -100,6 +119,8 @@ mod tests {
             remind_minutes: None,
             assignee_id: None,
             created_by: None,
+            color: None,
+            links: vec![],
         };
         let v = serde_json::to_value(&t).unwrap();
         assert!(v["assigneeId"].is_null() && v["createdBy"].is_null() && v["listId"] == "l");

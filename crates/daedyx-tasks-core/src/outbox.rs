@@ -157,3 +157,6 @@ mod tests;
 #[cfg(test)]
 #[path = "outbox_sections_tests.rs"]
 mod sections_tests;
+#[cfg(test)]
+#[path = "outbox_stand3_tests.rs"]
+mod stand3_tests;

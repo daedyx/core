@@ -3,6 +3,7 @@ use super::errors::TaskError;
 use super::stamp::{apply, TASKS};
 use super::store;
 use super::types::Task;
+use super::validate::{check_color, check_links};
 use crate::ids::new_id;
 use rusqlite::Connection;
 use serde_json::{json, Map, Value};
@@ -46,6 +47,8 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
             _ => bad("done_at"),
         },
         "position" => if v.is_number() { Ok(v.clone()) } else { bad("position") },
+        "color" => check_color(v),
+        "links" => check_links(v),
         _ => bad("field"),
     }
 }
@@ -61,7 +64,7 @@ fn check_section(conn: &Connection, list_id: &str, parent: Option<&str>, section
 }
 
 /// Neue Aufgabe am Ende der Liste (oder unter einer Oberaufgabe). `fields` darf Titel, Notiz, Fälligkeit, Priorität,
-/// Wiederholung und Erinnerung enthalten; `title` ist Pflicht.
+/// Wiederholung, Erinnerung, Farbe und Verweise enthalten; `title` ist Pflicht.
 pub fn create_task(
     conn: &Connection,
     list_id: &str,
@@ -78,7 +81,7 @@ pub fn create_task(
     };
     check_section(conn, list_id, parent_id, section)?;
     let mut changes = vec![("title", check("title", fields.get("title").unwrap_or(&Value::Null))?)];
-    for f in ["notes", "due", "due_has_time", "priority", "repeat_rule", "remind_minutes"] {
+    for f in ["notes", "due", "due_has_time", "priority", "repeat_rule", "remind_minutes", "color", "links"] {
         if let Some(v) = fields.get(f) {
             changes.push((f, check(f, v)?));
         }
@@ -108,7 +111,7 @@ pub fn update_task(conn: &Connection, id: &str, patch: &Map<String, Value>, now_
     let mut changes = Vec::new();
     for (f, v) in patch {
         let name = match f.as_str() {
-            "title" | "notes" | "due" | "due_has_time" | "priority" | "repeat_rule" | "remind_minutes" | "done_at" => f.as_str(),
+            "title" | "notes" | "due" | "due_has_time" | "priority" | "repeat_rule" | "remind_minutes" | "done_at" | "color" | "links" => f.as_str(),
             _ => return Err(TaskError::Invalid("field")),
         };
         changes.push((name, check(name, v)?));
