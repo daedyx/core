@@ -78,10 +78,18 @@ pub fn tasks_in_list(conn: &Connection, list_id: &str) -> Result<Vec<Task>, Task
         "SELECT {TASK_COLS} FROM tasks WHERE list_id = ?1 AND deleted_at IS NULL ORDER BY position, id"
     ))?;
     let all = st.query_map([list_id], task_from_row)?.collect::<Result<Vec<_>, _>>()?;
+    let mut by_parent: std::collections::HashMap<Option<&str>, Vec<&Task>> = std::collections::HashMap::new();
+    for t in &all {
+        by_parent.entry(t.parent_id.as_deref()).or_default().push(t);
+    }
+    // Tiefensuche in Handreihenfolge: jede Aufgabe direkt vor ihren Unteraufgaben.
     let mut out = Vec::with_capacity(all.len());
-    for top in all.iter().filter(|t| t.parent_id.is_none()) {
-        out.push(top.clone());
-        out.extend(all.iter().filter(|t| t.parent_id.as_deref() == Some(top.id.as_str())).cloned());
+    let mut stack: Vec<&Task> = by_parent.get(&None).map(|v| v.iter().rev().copied().collect()).unwrap_or_default();
+    while let Some(t) = stack.pop() {
+        out.push(t.clone());
+        if let Some(kids) = by_parent.get(&Some(t.id.as_str())) {
+            stack.extend(kids.iter().rev().copied());
+        }
     }
     Ok(out)
 }

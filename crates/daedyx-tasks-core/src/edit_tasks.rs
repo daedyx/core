@@ -2,6 +2,7 @@
 use super::errors::TaskError;
 use super::stamp::{apply, TASKS};
 use super::store;
+use super::tree::{depth_of, descendants, height_of, DESK_MAX_DEPTH};
 use super::types::Task;
 use super::validate::{check_color, check_links};
 use crate::ids::new_id;
@@ -66,8 +67,7 @@ fn check_section(conn: &Connection, list_id: &str, parent: Option<&str>, section
     Ok(())
 }
 
-/// Neue Aufgabe am Ende der Liste (oder unter einer Oberaufgabe). `fields` darf Titel, Notiz, Fälligkeit, Priorität,
-/// Wiederholung, Erinnerung, Farbe und Verweise enthalten; `title` ist Pflicht.
+/// Wie [`create_task_depth`] mit einer Ebene Unteraufgaben (Desk).
 pub fn create_task(
     conn: &Connection,
     list_id: &str,
@@ -75,8 +75,21 @@ pub fn create_task(
     fields: &Map<String, Value>,
     now_ms: u64,
 ) -> Result<Task, TaskError> {
+    create_task_depth(conn, list_id, parent_id, fields, now_ms, DESK_MAX_DEPTH)
+}
+
+/// Neue Aufgabe am Ende der Liste (oder unter einer Oberaufgabe, höchstens `max_depth` Ebenen tief). `fields` darf Titel, Notiz, Fälligkeit, Priorität,
+/// Wiederholung, Erinnerung, Farbe und Verweise enthalten; `title` ist Pflicht.
+pub fn create_task_depth(
+    conn: &Connection,
+    list_id: &str,
+    parent_id: Option<&str>,
+    fields: &Map<String, Value>,
+    now_ms: u64,
+    max_depth: u32,
+) -> Result<Task, TaskError> {
     store::list(conn, list_id)?;
-    check_parent(conn, list_id, None, parent_id)?;
+    check_parent(conn, list_id, None, parent_id, max_depth)?;
     let section = match fields.get("section_id") {
         None | Some(Value::Null) => None,
         Some(Value::String(s)) => Some(s.as_str()),
@@ -130,27 +143,32 @@ pub fn update_task(conn: &Connection, id: &str, patch: &Map<String, Value>, now_
     store::task(conn, id)
 }
 
-fn check_parent(conn: &Connection, list_id: &str, moving: Option<&str>, parent: Option<&str>) -> Result<(), TaskError> {
+fn check_parent(
+    conn: &Connection,
+    list_id: &str,
+    moving: Option<&str>,
+    parent: Option<&str>,
+    max_depth: u32,
+) -> Result<(), TaskError> {
     let Some(p) = parent else { return Ok(()) };
     let parent = store::task(conn, p)?;
     if parent.list_id != list_id || moving == Some(p) {
         return Err(TaskError::Invalid("parent"));
     }
-    if parent.parent_id.is_some() {
-        return Err(TaskError::TooDeep);
-    }
     if let Some(m) = moving {
-        let kids: i64 = conn.query_row("SELECT count(*) FROM tasks WHERE parent_id = ?1 AND deleted_at IS NULL", [m], |r| r.get(0))?;
-        if kids > 0 {
-            return Err(TaskError::TooDeep);
+        // Nicht unter einen eigenen Nachfahren verschieben (Zyklus).
+        if descendants(conn, m)?.iter().any(|d| d == p) {
+            return Err(TaskError::Invalid("parent"));
         }
+    }
+    let below = moving.map_or(Ok(0), |m| height_of(conn, m))?;
+    if depth_of(conn, p)? + 1 + below > max_depth {
+        return Err(TaskError::TooDeep);
     }
     Ok(())
 }
 
-/// Verschiebt in eine andere Liste und/oder unter eine andere Oberaufgabe und setzt die Position (Bruchzahl).
-/// Unteraufgaben folgen ihrer Oberaufgabe in die neue Liste. `section_id` ist immer der gewünschte Abschnitt
-/// (`None` = „Ohne Abschnitt“) und muss zur Zielliste gehören; Unteraufgaben haben keinen.
+/// Wie [`move_task_depth`] mit einer Ebene Unteraufgaben (Desk).
 pub fn move_task(
     conn: &Connection,
     id: &str,
@@ -160,9 +178,26 @@ pub fn move_task(
     position: f64,
     now_ms: u64,
 ) -> Result<Task, TaskError> {
+    move_task_depth(conn, id, list_id, parent_id, section_id, position, now_ms, DESK_MAX_DEPTH)
+}
+
+/// Verschiebt in eine andere Liste und/oder unter eine andere Oberaufgabe (samt Unterbaum, höchstens `max_depth` Ebenen
+/// tief, nie unter einen eigenen Nachfahren) und setzt die Position (Bruchzahl). Alle Nachfahren folgen in die neue Liste. `section_id` ist immer der gewünschte Abschnitt
+/// (`None` = „Ohne Abschnitt“) und muss zur Zielliste gehören; Unteraufgaben haben keinen.
+#[allow(clippy::too_many_arguments)]
+pub fn move_task_depth(
+    conn: &Connection,
+    id: &str,
+    list_id: &str,
+    parent_id: Option<&str>,
+    section_id: Option<&str>,
+    position: f64,
+    now_ms: u64,
+    max_depth: u32,
+) -> Result<Task, TaskError> {
     let t = store::task(conn, id)?;
     store::list(conn, list_id)?;
-    check_parent(conn, list_id, Some(id), parent_id)?;
+    check_parent(conn, list_id, Some(id), parent_id, max_depth)?;
     check_section(conn, list_id, parent_id, section_id)?;
     if !position.is_finite() {
         return Err(TaskError::Invalid("position"));
@@ -175,26 +210,18 @@ pub fn move_task(
     ];
     apply(conn, &TASKS, id, &changes, now_ms)?;
     if t.list_id != list_id {
-        let kids: Vec<String> = conn
-            .prepare("SELECT id FROM tasks WHERE parent_id = ?1 AND deleted_at IS NULL")?
-            .query_map([id], |r| r.get(0))?
-            .collect::<Result<_, _>>()?;
-        for k in kids {
+        for k in descendants(conn, id)? {
             apply(conn, &TASKS, &k, &[("list_id", json!(list_id))], now_ms)?;
         }
     }
     store::task(conn, id)
 }
 
-/// Löscht die Aufgabe und ihre Unteraufgaben (Grabsteine).
+/// Löscht die Aufgabe und alle ihre Nachfahren (Grabsteine).
 pub fn delete_task(conn: &Connection, id: &str, now_ms: u64) -> Result<(), TaskError> {
     store::task(conn, id)?;
     let gone = json!((now_ms / 1000) as i64);
-    let kids: Vec<String> = conn
-        .prepare("SELECT id FROM tasks WHERE parent_id = ?1 AND deleted_at IS NULL")?
-        .query_map([id], |r| r.get(0))?
-        .collect::<Result<_, _>>()?;
-    for k in kids {
+    for k in descendants(conn, id)? {
         apply(conn, &TASKS, &k, &[("deleted_at", gone.clone())], now_ms)?;
     }
     apply(conn, &TASKS, id, &[("deleted_at", gone)], now_ms)

@@ -20,6 +20,7 @@ pub mod stamp;
 pub mod store;
 #[cfg(test)]
 pub mod test_db;
+pub mod tree;
 pub mod types;
 pub mod validate;
 pub mod zone;

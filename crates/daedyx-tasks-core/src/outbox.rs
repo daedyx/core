@@ -57,9 +57,17 @@ fn read(conn: &Connection, table: &Table, id: &str) -> Result<Option<Record>, Ta
 pub fn export_dirty(conn: &Connection) -> Result<Vec<Change>, TaskError> {
     let mut out = Vec::new();
     for table in TABLES {
-        let order = if table.name == "tasks" { "parent_id IS NOT NULL, id" } else { "id" };
+        // Aufgaben: Eltern vor Kindern, beliebig tief (Ebene über die Elternkette).
+        let sql = if table.name == "tasks" {
+            "WITH RECURSIVE d(id, n) AS (SELECT id, 0 FROM tasks WHERE parent_id IS NULL \
+             UNION ALL SELECT t.id, d.n + 1 FROM tasks t JOIN d ON t.parent_id = d.id WHERE d.n < 1000) \
+             SELECT tasks.id FROM tasks JOIN d ON d.id = tasks.id WHERE tasks.dirty = 1 ORDER BY d.n, tasks.id"
+                .to_string()
+        } else {
+            format!("SELECT id FROM {} WHERE dirty = 1 ORDER BY id", table.name)
+        };
         let ids: Vec<String> = conn
-            .prepare(&format!("SELECT id FROM {} WHERE dirty = 1 ORDER BY {order}", table.name))?
+            .prepare(&sql)?
             .query_map([], |r| r.get(0))?
             .collect::<Result<_, _>>()?;
         for id in ids {
@@ -112,9 +120,26 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
     let now = (now_ms / 1000) as i64;
     let tx = conn.unchecked_transaction()?;
     let mut sorted: Vec<&Change> = changes.iter().collect();
+    // Aufgaben innerhalb des Stapels nach Tiefe der Elternkette, damit Eltern vor Kindern eingespielt werden.
+    let parents: BTreeMap<&str, &str> = changes
+        .iter()
+        .filter(|c| c.table == "tasks")
+        .filter_map(|c| Some((c.id.as_str(), c.fields.get("parent_id")?.as_str()?)))
+        .collect();
+    let depth = |c: &Change| {
+        let (mut n, mut cur) = (0usize, c.id.as_str());
+        while let Some(p) = parents.get(cur) {
+            n += 1;
+            cur = p;
+            if n > 1000 {
+                break;
+            }
+        }
+        n
+    };
     let rank = |c: &Change| {
         let t = TABLES.iter().position(|t| t.name == c.table).unwrap_or(0);
-        (t, c.table == "tasks" && c.fields.get("parent_id").is_some_and(|p| !p.is_null()))
+        (t, if c.table == "tasks" { depth(c) } else { 0 })
     };
     sorted.sort_by_key(|c| rank(c));
     for c in sorted {
