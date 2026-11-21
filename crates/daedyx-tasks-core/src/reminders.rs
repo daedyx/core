@@ -35,20 +35,29 @@ fn base_secs(t: &Task, tz: chrono_tz::Tz) -> Option<i64> {
 /// Offene Aufgaben mit Erinnerung, deren Zeitpunkt in `[from, to)` liegt und die noch nicht gemeldet wurden.
 pub fn pending(conn: &Connection, from: i64, to: i64, tz_name: &str) -> Result<Vec<DueReminder>, TaskError> {
     let tz = zone(tz_name);
+    // Aufgaben mit Fälligkeit und mindestens einer Erinnerung (Zeile in `task_alarms` oder das alte Einzelfeld).
     let sql = format!(
         "SELECT {TASK_COLS} FROM tasks WHERE deleted_at IS NULL AND done_at IS NULL AND due IS NOT NULL \
-         AND remind_minutes IS NOT NULL AND list_id IN (SELECT id FROM task_lists WHERE deleted_at IS NULL)"
+         AND (remind_minutes IS NOT NULL OR EXISTS (SELECT 1 FROM task_alarms a WHERE a.task_id = tasks.id AND a.deleted_at IS NULL)) \
+         AND list_id IN (SELECT id FROM task_lists WHERE deleted_at IS NULL)"
     );
     let tasks = conn.prepare(&sql)?.query_map([], task_from_row)?.collect::<Result<Vec<_>, _>>()?;
     let mut fired = conn.prepare("SELECT 1 FROM task_alarms_fired WHERE task_id = ?1 AND fire_at = ?2")?;
     let mut out = Vec::new();
     for t in tasks {
-        let (Some(base), Some(min)) = (base_secs(&t, tz), t.remind_minutes) else { continue };
-        let fire_at = base - min * 60;
-        if fire_at < from || fire_at >= to || fired.exists((&t.id, fire_at))? {
-            continue;
+        let Some(base) = base_secs(&t, tz) else { continue };
+        // Das Einzelfeld gilt nur, solange die Aufgabe keine eigenen Zeilen hat (ältere Daten, ältere Apps).
+        let mut mins = super::edit_alarms::alarms(conn, &t.id)?;
+        if mins.is_empty() {
+            mins.extend(t.remind_minutes);
         }
-        out.push(DueReminder { task_id: t.id, title: t.title, fire_at, minutes_before: min, due_has_time: t.due_has_time });
+        for min in mins {
+            let fire_at = base - min * 60;
+            if fire_at < from || fire_at >= to || fired.exists((&t.id, fire_at))? {
+                continue;
+            }
+            out.push(DueReminder { task_id: t.id.clone(), title: t.title.clone(), fire_at, minutes_before: min, due_has_time: t.due_has_time });
+        }
     }
     out.sort_by_key(|r| r.fire_at);
     Ok(out)
@@ -112,6 +121,22 @@ mod tests {
         let n = tick(&conn, NINE - 1700, "Europe/Berlin", |r| got.push(r.title.clone())).unwrap();
         assert_eq!((n, got.as_slice()), (1, ["ganztägig".to_string()].as_slice()));
         assert_eq!(tick(&conn, NINE - 1700, "Europe/Berlin", |_| panic!("doppelt")).unwrap(), 0);
+    }
+
+    #[test]
+    fn several_alarms_each_fire_once_and_the_legacy_field_is_only_a_fallback() {
+        use crate::edit_alarms::set_alarms;
+        let conn = fresh();
+        let l = create_list(&conn, "A", "", 1000).unwrap().id;
+        let t = create_task(&conn, &l, None, &fields(json!({"title": "Zahnarzt", "due": "2026-11-19"})), 1000).unwrap().id;
+        set_alarms(&conn, &t, &[30, 1440], 2000).unwrap();
+        let all = pending(&conn, 0, i64::MAX, "Europe/Berlin").unwrap();
+        assert_eq!(all.iter().map(|r| r.fire_at).collect::<Vec<_>>(), [NINE - 86_400, NINE - 1800]);
+        let mut got = 0;
+        tick(&conn, NINE - 1700, "Europe/Berlin", |_| got += 1).unwrap();
+        assert_eq!(got, 1, "nur die 30-Minuten-Erinnerung liegt im Nachhol-Fenster");
+        tick(&conn, NINE - 86_000, "Europe/Berlin", |_| got += 10).unwrap();
+        assert_eq!(got, 11, "die Tages-Erinnerung kommt genau einmal");
     }
 
     #[test]

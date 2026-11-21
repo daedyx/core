@@ -1,11 +1,11 @@
 //! Migrationsbrücke: eigene Zählung `task_meta.schema_version`, unabhängig von `user_version` der App.
-//! Stand 1 = Desk-Migration 7, Stand 2 = Migration 8. Der Kern läuft in einem `SAVEPOINT`, damit er
+//! Stand 1 = Desk-Migration 7, Stand 2 = Migration 8, Stand 3 = Farben/Verweise/Heimat. Der Kern läuft in einem `SAVEPOINT`, damit er
 //! auch innerhalb der Transaktion einer App-Migration (Desk) und für sich allein (Tasks) arbeiten kann.
-use crate::schema::{STAND_1, STAND_2};
+use crate::schema::{STAND_1, STAND_2, STAND_3};
 use rusqlite::{Connection, OptionalExtension};
 
 /// Neuester Stand, den dieser Kern anlegt und versteht.
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 const SAVEPOINT: &str = "daedyx_tasks_core";
 
@@ -37,6 +37,10 @@ pub fn migrate(conn: &Connection) -> Result<(), MigrateError> {
     }
 }
 
+fn has_column(conn: &Connection, table: &str, col: &str) -> Result<bool, rusqlite::Error> {
+    conn.query_row(&format!("SELECT 1 FROM pragma_table_info('{table}') WHERE name = ?1"), [col], |_| Ok(())).optional().map(|r| r.is_some())
+}
+
 fn has_table(conn: &Connection, name: &str) -> Result<bool, rusqlite::Error> {
     conn.query_row("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1", [name], |_| Ok(())).optional().map(|r| r.is_some())
 }
@@ -52,7 +56,14 @@ fn detect(conn: &Connection) -> Result<i64, MigrateError> {
                 return Err(MigrateError::BadVersion(s));
             }
             // Der gespeicherte Stand muss zum Tabellenbestand passen, sonst nicht still bestätigen.
+            // Konsistenz nur für Stände, die dieser Kern kennt; neuere meldet `run` als `TooNew`.
+            if v > SCHEMA_VERSION {
+                return Ok(v);
+            }
             if v >= 2 && !has_table(conn, "task_sections")? {
+                return Err(MigrateError::Inconsistent { stored: v });
+            }
+            if v >= 3 && !(has_column(conn, "tasks", "links")? && has_table(conn, "task_alarms")?) {
                 return Err(MigrateError::Inconsistent { stored: v });
             }
             return Ok(v);
@@ -77,6 +88,9 @@ fn run(conn: &Connection) -> Result<(), MigrateError> {
     }
     if found < 2 {
         conn.execute_batch(STAND_2)?;
+    }
+    if found < 3 {
+        conn.execute_batch(STAND_3)?;
     }
     conn.execute(
         "INSERT INTO task_meta (key, value) VALUES ('schema_version', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",

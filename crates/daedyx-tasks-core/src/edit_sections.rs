@@ -4,6 +4,7 @@ use super::errors::TaskError;
 use super::stamp::{apply, SECTIONS, TASKS};
 use super::store;
 use super::types::Section;
+use super::validate::check_color;
 use crate::ids::new_id;
 use rusqlite::Connection;
 use serde_json::json;
@@ -24,6 +25,12 @@ pub fn create_section(conn: &Connection, list_id: &str, name: &str, now_ms: u64)
 pub fn rename_section(conn: &Connection, id: &str, name: &str, now_ms: u64) -> Result<(), TaskError> {
     store::section(conn, id)?;
     apply(conn, &SECTIONS, id, &[("name", json!(clean_name(name)?))], now_ms)
+}
+
+/// Farbe des Abschnitts (`#RRGGBB`) oder `None` für den Standard.
+pub fn set_section_color(conn: &Connection, id: &str, color: Option<&str>, now_ms: u64) -> Result<(), TaskError> {
+    store::section(conn, id)?;
+    apply(conn, &SECTIONS, id, &[("color", check_color(&json!(color))?)], now_ms)
 }
 
 /// Neue Reihenfolge: Position = Index in `ids`; fremde oder unbekannte IDs werden übersprungen.

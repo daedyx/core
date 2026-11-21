@@ -14,16 +14,17 @@ pub struct Table {
 }
 
 pub const LISTS: Table =
-    Table { name: "task_lists", fields: &["name", "color", "position", "owner_id", "deleted_at"] };
+    Table { name: "task_lists", fields: &["name", "color", "position", "owner_id", "home", "moved_at", "deleted_at"] };
 pub const SECTIONS: Table =
-    Table { name: "task_sections", fields: &["list_id", "name", "position", "deleted_at"] };
+    Table { name: "task_sections", fields: &["list_id", "name", "position", "color", "deleted_at"] };
 pub const TASKS: Table = Table {
     name: "tasks",
     fields: &[
         "list_id", "parent_id", "section_id", "title", "notes", "due", "due_has_time", "priority", "done_at", "position",
-        "repeat_rule", "remind_minutes", "assignee_id", "created_by", "deleted_at",
+        "repeat_rule", "remind_minutes", "assignee_id", "created_by", "color", "links", "deleted_at",
     ],
 };
+pub const ALARMS: Table = Table { name: "task_alarms", fields: &["task_id", "minutes_before", "deleted_at"] };
 pub const COMPLETIONS: Table = Table { name: "task_completions", fields: &["task_id", "done_at", "due_was", "deleted_at"] };
 
 fn to_sql(v: &Value) -> Sql {

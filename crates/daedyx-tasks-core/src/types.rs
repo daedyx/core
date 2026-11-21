@@ -22,6 +22,20 @@ pub struct RepeatRule {
     pub weekdays: Vec<u8>,
     #[serde(default)]
     pub from_done: bool,
+    /// Fester Monatstag (1–31) für `Monthly`/`Yearly`: Kurze Monate nehmen den letzten Tag, der Anker bleibt erhalten
+    /// (31. → 28. Feb. → 31. März). `None` = altes Verhalten (Tag der bisherigen Fälligkeit).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub month_day: Option<u8>,
+}
+
+/// Verweis einer Aufgabe auf etwas in einer Daedyx-App (z. B. eine Mail in Desk).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Link {
+    pub app: String,
+    pub kind: String,
+    pub r#ref: String,
+    pub title: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -33,6 +47,10 @@ pub struct TaskList {
     pub position: f64,
     /// Für die spätere Zusammenarbeit vorbereitet, heute immer `None`.
     pub owner_id: Option<String>,
+    /// Heimat-App der Liste (`desk`/`tasks`); `None` = Standard.
+    pub home: Option<String>,
+    /// Zeitpunkt (UTC-Sekunden) des letzten Umzugs in eine andere Heimat.
+    pub moved_at: Option<i64>,
 }
 
 /// Abschnitt (Spalte im Board) einer Liste.
@@ -43,6 +61,8 @@ pub struct Section {
     pub list_id: String,
     pub name: String,
     pub position: f64,
+    /// `#RRGGBB`; `None` = Standard laut Design.
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -67,6 +87,9 @@ pub struct Task {
     /// Für die spätere Zusammenarbeit vorbereitet, heute immer `None`.
     pub assignee_id: Option<String>,
     pub created_by: Option<String>,
+    /// `#RRGGBB`; `None` = Standard laut Design.
+    pub color: Option<String>,
+    pub links: Vec<Link>,
 }
 
 #[cfg(test)]
@@ -76,10 +99,14 @@ mod tests {
     #[test]
     fn repeat_rule_uses_camel_case_and_defaults() {
         let r: RepeatRule = serde_json::from_str(r#"{"kind":"weekly","interval":2,"weekdays":[1,3]}"#).unwrap();
-        assert_eq!(r, RepeatRule { kind: RepeatKind::Weekly, interval: 2, weekdays: vec![1, 3], from_done: false });
+        assert_eq!(r, RepeatRule { kind: RepeatKind::Weekly, interval: 2, weekdays: vec![1, 3], from_done: false, month_day: None });
         let r: RepeatRule = serde_json::from_str(r#"{"kind":"daily","interval":1,"fromDone":true}"#).unwrap();
         assert!(r.from_done && r.weekdays.is_empty());
         assert!(serde_json::to_string(&r).unwrap().contains("fromDone"));
+        assert!(!serde_json::to_string(&r).unwrap().contains("monthDay"), "ohne Anker bleibt das JSON wie bisher");
+        let r: RepeatRule = serde_json::from_str(r#"{"kind":"monthly","interval":1,"monthDay":31}"#).unwrap();
+        assert_eq!(r.month_day, Some(31));
+        assert!(serde_json::to_string(&r).unwrap().contains("\"monthDay\":31"));
     }
 
     #[test]
@@ -100,6 +127,8 @@ mod tests {
             remind_minutes: None,
             assignee_id: None,
             created_by: None,
+            color: None,
+            links: vec![],
         };
         let v = serde_json::to_value(&t).unwrap();
         assert!(v["assigneeId"].is_null() && v["createdBy"].is_null() && v["listId"] == "l");

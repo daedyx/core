@@ -1,5 +1,6 @@
 //! Daedyx Aufgaben-Kern (lokal, sync-fähig). Kein Tauri, keine eigene Datenbank: alles nimmt `&Connection`.
 //! Schema und Brücke: `migrate`, Stände in `schema`.
+pub mod edit_alarms;
 pub mod edit_done;
 pub mod edit_lists;
 pub mod edit_sections;
@@ -19,7 +20,9 @@ pub mod stamp;
 pub mod store;
 #[cfg(test)]
 pub mod test_db;
+pub mod tree;
 pub mod types;
+pub mod validate;
 pub mod zone;
 
 pub use errors::TaskError;

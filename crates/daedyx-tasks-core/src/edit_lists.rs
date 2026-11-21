@@ -3,6 +3,7 @@ use super::errors::TaskError;
 use super::stamp::{apply, LISTS, SECTIONS, TASKS};
 use super::store;
 use super::types::TaskList;
+use super::validate::check_home;
 use crate::ids::new_id;
 use rusqlite::Connection;
 use serde_json::{json, Value};
@@ -32,6 +33,13 @@ pub fn rename_list(conn: &Connection, id: &str, name: &str, now_ms: u64) -> Resu
 pub fn set_list_color(conn: &Connection, id: &str, color: &str, now_ms: u64) -> Result<(), TaskError> {
     store::list(conn, id)?;
     apply(conn, &LISTS, id, &[("color", json!(color))], now_ms)
+}
+
+/// Setzt Heimat-App (`desk`/`tasks`/None) und Umzugszeitpunkt (UTC-Sekunden) der Liste; beide Felder einzeln gestempelt.
+pub fn set_list_home(conn: &Connection, id: &str, home: Option<&str>, moved_at: Option<i64>, now_ms: u64) -> Result<(), TaskError> {
+    store::list(conn, id)?;
+    let home = check_home(home)?;
+    apply(conn, &LISTS, id, &[("home", home), ("moved_at", json!(moved_at))], now_ms)
 }
 
 /// Neue Reihenfolge: Position = Index in `ids` (unbekannte IDs werden übersprungen).

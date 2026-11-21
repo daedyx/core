@@ -160,3 +160,21 @@ fn subtasks_never_carry_a_section_and_follow_their_parent() {
     let m = move_task(&conn, &a.id, &l, Some(&p.id), None, 1.0, 3000).unwrap();
     assert!(m.section_id.is_none());
 }
+
+#[test]
+fn the_month_day_anchor_is_accepted_between_1_and_31_only() {
+    let (conn, l) = setup();
+    let ok = create_task(
+        &conn,
+        &l,
+        None,
+        &fields(json!({"title": "Miete", "due": "2026-01-31", "repeat_rule": {"kind": "monthly", "interval": 1, "monthDay": 31}})),
+        1000,
+    )
+    .unwrap();
+    assert_eq!(ok.repeat.unwrap().month_day, Some(31));
+    for bad in [0, 32, 255] {
+        let r = create_task(&conn, &l, None, &fields(json!({"title": "x", "repeat_rule": {"kind": "monthly", "interval": 1, "monthDay": bad}})), 1000);
+        assert!(r.is_err(), "{bad}");
+    }
+}
