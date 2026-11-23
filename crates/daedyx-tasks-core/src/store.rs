@@ -17,7 +17,8 @@ pub fn task_from_row(r: &Row) -> rusqlite::Result<Task> {
         notes: r.get(4)?,
         due: r.get(5)?,
         due_has_time: r.get::<_, i64>(6)? != 0,
-        priority: r.get::<_, i64>(7)? as u8,
+        // Gültig sind 0–3 (`edit_tasks`); kaputte Werte aus der Datei werden 0 statt abgeschnitten.
+        priority: u8::try_from(r.get::<_, i64>(7)?).unwrap_or(0),
         done_at: r.get(8)?,
         position: r.get(9)?,
         repeat: repeat.and_then(|s| serde_json::from_str::<RepeatRule>(&s).ok()),

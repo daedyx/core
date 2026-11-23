@@ -129,7 +129,7 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
     let depth = |c: &Change| {
         let (mut n, mut cur) = (0usize, c.id.as_str());
         while let Some(p) = parents.get(cur) {
-            n += 1;
+            n = n.saturating_add(1);
             cur = p;
             if n > 1000 {
                 break;
@@ -167,7 +167,7 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
             });
             sets.push(format!("{f} = ?{}", params.len()));
         }
-        params.push(rusqlite::types::Value::Text(serde_json::to_string(&merged.clocks).expect("clocks")));
+        params.push(rusqlite::types::Value::Text(super::stamp::clocks_text(&merged.clocks)));
         sets.push(format!("clocks = ?{}", params.len()));
         params.push(rusqlite::types::Value::Integer(now));
         sets.push(format!("updated_at = ?{}", params.len()));

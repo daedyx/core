@@ -7,6 +7,13 @@ use rusqlite::Connection;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+/// Feld-Stempel als JSON-Text. Gleiches Ergebnis wie `serde_json::to_string`, aber ohne Fehlerfall
+/// (eine Zuordnung Text → Text lässt sich immer schreiben), damit hier keine Panik möglich ist.
+pub fn clocks_text(clocks: &BTreeMap<String, String>) -> String {
+    let map: serde_json::Map<String, Value> = clocks.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
+    Value::Object(map).to_string()
+}
+
 pub struct Table {
     pub name: &'static str,
     /// Nur diese Felder dürfen geändert werden (Schutz vor beliebigen Spaltennamen).
@@ -65,7 +72,7 @@ pub fn apply(
         params.push(to_sql(v));
         sets.push(format!("{f} = ?{}", params.len()));
     }
-    params.push(Sql::Text(serde_json::to_string(&clocks).expect("clocks")));
+    params.push(Sql::Text(clocks_text(&clocks)));
     sets.push(format!("clocks = ?{}", params.len()));
     params.push(Sql::Integer((now_ms / 1000) as i64));
     sets.push(format!("updated_at = ?{}, dirty = 1", params.len()));
@@ -111,6 +118,16 @@ mod tests {
         let clocks: String = conn.query_row("SELECT clocks FROM task_lists", [], |r| r.get(0)).unwrap();
         let c: BTreeMap<String, String> = serde_json::from_str(&clocks).unwrap();
         assert!(c["name"] > c["color"]);
+    }
+
+    #[test]
+    fn clocks_text_matches_serde_for_any_keys() {
+        let mut m = BTreeMap::new();
+        for (k, v) in [("name", "1"), ("ä\"x", "2\\"), ("", "\u{0}")] {
+            m.insert(k.to_string(), v.to_string());
+        }
+        assert_eq!(clocks_text(&m), serde_json::to_string(&m).unwrap());
+        assert_eq!(clocks_text(&BTreeMap::new()), "{}");
     }
 
     #[test]

@@ -52,7 +52,7 @@ pub fn pending(conn: &Connection, from: i64, to: i64, tz_name: &str) -> Result<V
             mins.extend(t.remind_minutes);
         }
         for min in mins {
-            let fire_at = base - min * 60;
+            let fire_at = base.saturating_sub(min.saturating_mul(60));
             if fire_at < from || fire_at >= to || fired.exists((&t.id, fire_at))? {
                 continue;
             }
@@ -70,8 +70,8 @@ pub fn mark_fired(conn: &Connection, r: &DueReminder) -> Result<(), TaskError> {
 
 /// Ein Durchgang: Fälliges der letzten `CATCH_UP_SECS` melden (über `fire`) und merken.
 pub fn tick(conn: &Connection, now: i64, tz_name: &str, mut fire: impl FnMut(&DueReminder)) -> Result<usize, TaskError> {
-    conn.execute("DELETE FROM task_alarms_fired WHERE fire_at < ?1", [now - 2 * 86_400])?;
-    let due = pending(conn, now - CATCH_UP_SECS, now + 1, tz_name)?;
+    conn.execute("DELETE FROM task_alarms_fired WHERE fire_at < ?1", [now.saturating_sub(2 * 86_400)])?;
+    let due = pending(conn, now.saturating_sub(CATCH_UP_SECS), now.saturating_add(1), tz_name)?;
     for r in &due {
         fire(r);
         mark_fired(conn, r)?;

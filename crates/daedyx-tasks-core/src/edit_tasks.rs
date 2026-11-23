@@ -162,7 +162,7 @@ fn check_parent(
         }
     }
     let below = moving.map_or(Ok(0), |m| height_of(conn, m))?;
-    if depth_of(conn, p)? + 1 + below > max_depth {
+    if depth_of(conn, p)?.saturating_add(1).saturating_add(below) > max_depth {
         return Err(TaskError::TooDeep);
     }
     Ok(())

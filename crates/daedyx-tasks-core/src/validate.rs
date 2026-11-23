@@ -9,7 +9,7 @@ pub const MAX_LINKS: usize = 50;
 pub fn check_color(v: &Value) -> Result<Value, TaskError> {
     match v {
         Value::Null => Ok(Value::Null),
-        Value::String(s) if s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit()) => {
+        Value::String(s) if s.len() == 7 && s.strip_prefix('#').is_some_and(|h| h.chars().all(|c| c.is_ascii_hexdigit())) => {
             Ok(json!(s.to_ascii_uppercase()))
         }
         _ => Err(TaskError::Invalid("color")),
@@ -45,7 +45,7 @@ pub fn check_links(v: &Value) -> Result<Value, TaskError> {
     if out.is_empty() {
         return Ok(Value::Null);
     }
-    Ok(json!(serde_json::to_string(&out).expect("links")))
+    serde_json::to_string(&out).map(|t| json!(t)).map_err(|_| TaskError::Invalid("links"))
 }
 
 #[cfg(test)]
@@ -56,7 +56,7 @@ mod tests {
     fn colors_are_hex_or_null() {
         assert_eq!(check_color(&json!("#aabbcc")).unwrap(), json!("#AABBCC"));
         assert_eq!(check_color(&Value::Null).unwrap(), Value::Null);
-        for bad in ["red", "#abc", "#GGGGGG", "aabbcc", "#aabbccdd", ""] {
+        for bad in ["red", "#abc", "#GGGGGG", "aabbcc", "#aabbccdd", "", "#äöü", "ä#abcd", "#\u{202e}abc"] {
             assert!(check_color(&json!(bad)).is_err(), "{bad}");
         }
         assert!(check_color(&json!(5)).is_err());

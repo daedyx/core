@@ -14,9 +14,9 @@ fn f(title: &str) -> Map<String, Value> {
 fn chain(conn: &Connection) -> (String, Vec<String>) {
     let l = create_list(conn, "L", "", 1000).unwrap().id;
     let mut ids: Vec<String> = Vec::new();
-    for (i, t) in ["A", "B", "C", "D"].iter().enumerate() {
+    for (at, t) in (1000_u64..).zip(["A", "B", "C", "D"]) {
         let parent = ids.last().cloned();
-        ids.push(create_task_depth(conn, &l, parent.as_deref(), &f(t), 1000 + i as u64, 6).unwrap().id);
+        ids.push(create_task_depth(conn, &l, parent.as_deref(), &f(t), at, 6).unwrap().id);
     }
     (l, ids)
 }

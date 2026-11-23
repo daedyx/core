@@ -40,7 +40,7 @@ pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> Option<NaiveDate> {
         RepeatKind::Weekly if rule.weekdays.is_empty() => plus_days(base, n.checked_mul(7)?),
         RepeatKind::Weekly => {
             // Rest der laufenden Woche, sonst die Woche `n` Wochen später (gleiche Regel wie früher Tag für Tag).
-            let monday = plus_days(base, -i64::from(base.weekday().num_days_from_monday()))?;
+            let monday = base.checked_sub_signed(Duration::try_days(i64::from(base.weekday().num_days_from_monday()))?)?;
             let rest = 6_i64.checked_sub(i64::from(base.weekday().num_days_from_monday()))?;
             if let Some(day) = plus_days(base, 1).and_then(|from| first_listed_day(&rule.weekdays, from, rest)) {
                 return Some(day);

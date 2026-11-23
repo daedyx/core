@@ -14,7 +14,8 @@ pub fn depth_of(conn: &Connection, id: &str) -> Result<u32, TaskError> {
         [id],
         |r| r.get(0),
     )?;
-    Ok(n as u32)
+    // Die Abfrage zählt höchstens bis 1000; ein unmöglicher Wert gilt als „zu tief“.
+    Ok(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
 /// Wie viele Ebenen unter der Aufgabe liegen (ohne Gelöschte); 0 = keine Unteraufgaben.
@@ -25,7 +26,7 @@ pub fn height_of(conn: &Connection, id: &str) -> Result<u32, TaskError> {
         [id],
         |r| r.get(0),
     )?;
-    Ok(n as u32)
+    Ok(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
 /// Alle lebenden Nachfahren (Kinder, Enkel, …) ohne die Aufgabe selbst.
