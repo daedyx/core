@@ -28,7 +28,13 @@ pub fn toggle_done(conn: &Connection, id: &str, now_ms: u64, tz: Tz) -> Result<T
                 "INSERT INTO task_completions (id, task_id, done_at, due_was, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
                 (&cid, id, now, &t.due, now),
             )?;
-            apply(conn, &COMPLETIONS, &cid, &[("task_id", json!(id)), ("done_at", json!(now)), ("due_was", json!(t.due))], now_ms)?;
+            apply(
+                conn,
+                &COMPLETIONS,
+                &cid,
+                &[("task_id", json!(id)), ("done_at", json!(now)), ("due_was", json!(t.due))],
+                now_ms,
+            )?;
             apply(conn, &TASKS, id, &[("due", json!(next_due))], now_ms)?;
         }
         None => apply(conn, &TASKS, id, &[("done_at", json!(now))], now_ms)?,
@@ -79,9 +85,11 @@ mod tests {
         let after = toggle_done(&conn, &t.id, NOW_MS, Berlin).unwrap();
         assert_eq!((after.done_at, after.due.as_deref()), (None, Some("2026-11-26")));
         let (n, due_was, dirty): (i64, String, i64) = conn
-            .query_row("SELECT count(*), max(due_was), min(dirty) FROM task_completions WHERE task_id = ?1", [&t.id], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-            })
+            .query_row(
+                "SELECT count(*), max(due_was), min(dirty) FROM task_completions WHERE task_id = ?1",
+                [&t.id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
             .unwrap();
         assert_eq!((n, due_was.as_str(), dirty), (1, "2026-11-19", 1));
         toggle_done(&conn, &t.id, NOW_MS + 5000, Berlin).unwrap();
@@ -93,7 +101,14 @@ mod tests {
     fn repeat_without_due_date_just_completes() {
         let conn = fresh();
         let l = create_list(&conn, "A", "", 1000).unwrap();
-        let t = create_task(&conn, &l.id, None, &fields(json!({"title": "x", "repeat_rule": {"kind": "daily", "interval": 1}})), 1000).unwrap();
+        let t = create_task(
+            &conn,
+            &l.id,
+            None,
+            &fields(json!({"title": "x", "repeat_rule": {"kind": "daily", "interval": 1}})),
+            1000,
+        )
+        .unwrap();
         assert!(toggle_done(&conn, &t.id, NOW_MS, Berlin).unwrap().done_at.is_some());
     }
 }

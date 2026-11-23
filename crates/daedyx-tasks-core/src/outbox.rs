@@ -66,10 +66,7 @@ pub fn export_dirty(conn: &Connection) -> Result<Vec<Change>, TaskError> {
         } else {
             format!("SELECT id FROM {} WHERE dirty = 1 ORDER BY id", table.name)
         };
-        let ids: Vec<String> = conn
-            .prepare(&sql)?
-            .query_map([], |r| r.get(0))?
-            .collect::<Result<_, _>>()?;
+        let ids: Vec<String> = conn.prepare(&sql)?.query_map([], |r| r.get(0))?.collect::<Result<_, _>>()?;
         for id in ids {
             if let Some(rec) = read(conn, table, &id)? {
                 out.push(Change { table: table.name.into(), id, fields: rec.fields, clocks: rec.clocks });
@@ -94,7 +91,9 @@ pub fn mark_synced(conn: &Connection, sent: &[Change]) -> Result<(), TaskError> 
 fn ensure_row(conn: &Connection, table: &Table, c: &Change, now: i64) -> Result<(), TaskError> {
     let text = |f: &str| c.fields.get(f).and_then(Value::as_str).unwrap_or_default().to_string();
     match table.name {
-        "task_lists" => conn.execute("INSERT OR IGNORE INTO task_lists (id, name, updated_at) VALUES (?1, '', ?2)", (&c.id, now))?,
+        "task_lists" => {
+            conn.execute("INSERT OR IGNORE INTO task_lists (id, name, updated_at) VALUES (?1, '', ?2)", (&c.id, now))?
+        }
         "task_sections" => conn.execute(
             "INSERT OR IGNORE INTO task_sections (id, list_id, name, updated_at) VALUES (?1, ?2, '', ?3)",
             (&c.id, text("list_id"), now),
@@ -181,8 +180,8 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
 }
 
 #[cfg(test)]
-#[path = "outbox_tests.rs"]
-mod tests;
+#[path = "outbox_alarms_tests.rs"]
+mod alarms_tests;
 #[cfg(test)]
 #[path = "outbox_sections_tests.rs"]
 mod sections_tests;
@@ -190,5 +189,5 @@ mod sections_tests;
 #[path = "outbox_stand3_tests.rs"]
 mod stand3_tests;
 #[cfg(test)]
-#[path = "outbox_alarms_tests.rs"]
-mod alarms_tests;
+#[path = "outbox_tests.rs"]
+mod tests;

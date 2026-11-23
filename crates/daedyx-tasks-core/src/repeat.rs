@@ -7,10 +7,8 @@ use chrono_tz::Tz;
 /// `anchor`: fester Tag des Monats; ohne ihn zählt der Tag von `d` (und rutscht nach kurzen Monaten nach unten).
 /// `None`, wenn das Ergebnis außerhalb des Kalenders läge.
 fn add_months(d: NaiveDate, months: u32, anchor: Option<u8>) -> Option<NaiveDate> {
-    let total = i64::from(d.year())
-        .checked_mul(12)?
-        .checked_add(i64::from(d.month0()))?
-        .checked_add(i64::from(months))?;
+    let total =
+        i64::from(d.year()).checked_mul(12)?.checked_add(i64::from(d.month0()))?.checked_add(i64::from(months))?;
     let y = i32::try_from(total.div_euclid(12)).ok()?;
     let m = u32::try_from(total.rem_euclid(12)).ok()?.checked_add(1)?;
     let first = anchor.map_or(d.day(), |a| u32::from(a.clamp(1, 31)));
@@ -28,7 +26,9 @@ fn plus_days(d: NaiveDate, days: i64) -> Option<NaiveDate> {
 
 /// Erster Tag in `[from, from + count)`, dessen Wochentag in `weekdays` steht.
 fn first_listed_day(weekdays: &[u8], from: NaiveDate, count: i64) -> Option<NaiveDate> {
-    (0..count).filter_map(|i| plus_days(from, i)).find(|d| weekdays.iter().any(|w| u32::from(*w) == weekday_no(d.weekday())))
+    (0..count)
+        .filter_map(|i| plus_days(from, i))
+        .find(|d| weekdays.iter().any(|w| u32::from(*w) == weekday_no(d.weekday())))
 }
 
 /// Nächster Termin nach `base` (immer später als `base`). `None` bei unmöglichen Regeln
@@ -40,7 +40,8 @@ pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> Option<NaiveDate> {
         RepeatKind::Weekly if rule.weekdays.is_empty() => plus_days(base, n.checked_mul(7)?),
         RepeatKind::Weekly => {
             // Rest der laufenden Woche, sonst die Woche `n` Wochen später (gleiche Regel wie früher Tag für Tag).
-            let monday = base.checked_sub_signed(Duration::try_days(i64::from(base.weekday().num_days_from_monday()))?)?;
+            let monday =
+                base.checked_sub_signed(Duration::try_days(i64::from(base.weekday().num_days_from_monday()))?)?;
             let rest = 6_i64.checked_sub(i64::from(base.weekday().num_days_from_monday()))?;
             if let Some(day) = plus_days(base, 1).and_then(|from| first_listed_day(&rule.weekdays, from, rest)) {
                 return Some(day);

@@ -12,7 +12,9 @@ const MAX_MINUTES: i64 = 525_600;
 
 /// Minuten vor der Fälligkeit, aufsteigend (die kleinste zuerst).
 pub fn alarms(conn: &Connection, task_id: &str) -> Result<Vec<i64>, TaskError> {
-    let mut st = conn.prepare("SELECT minutes_before FROM task_alarms WHERE task_id = ?1 AND deleted_at IS NULL ORDER BY minutes_before")?;
+    let mut st = conn.prepare(
+        "SELECT minutes_before FROM task_alarms WHERE task_id = ?1 AND deleted_at IS NULL ORDER BY minutes_before",
+    )?;
     Ok(st.query_map([task_id], |r| r.get(0))?.collect::<Result<_, _>>()?)
 }
 

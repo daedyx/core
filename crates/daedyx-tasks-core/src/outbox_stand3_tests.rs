@@ -19,7 +19,14 @@ fn colors_links_and_home_arrive_on_the_other_side() {
     set_list_home(&a, &l.id, Some("tasks"), Some(1_800_000_000), 1100).unwrap();
     let s = create_section(&a, &l.id, "Offen", 1500).unwrap();
     set_section_color(&a, &s.id, Some("#336699"), 1600).unwrap();
-    let t = create_task(&a, &l.id, None, &fields(json!({"title": "Dach", "color": "#AA0000", "links": link("Angebot")})), 2000).unwrap();
+    let t = create_task(
+        &a,
+        &l.id,
+        None,
+        &fields(json!({"title": "Dach", "color": "#AA0000", "links": link("Angebot")})),
+        2000,
+    )
+    .unwrap();
     sync(&a, &b, 9000);
     assert_eq!(dump(&a), dump(&b));
     let (home, moved): (Option<String>, Option<i64>) =
@@ -82,9 +89,15 @@ fn a_database_importing_stand_3_fields_from_a_peer_keeps_unknown_nothing_lost() 
     // Ein Gegenüber im Stand 3 schickt Felder; die Spalten sind in jeder migrierten Datenbank da.
     let b = fresh();
     let stamp = "000000000001-0000-z".to_string();
-    let fields_of = |pairs: &[(&str, Value)]| pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect::<BTreeMap<_, _>>();
+    let fields_of =
+        |pairs: &[(&str, Value)]| pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect::<BTreeMap<_, _>>();
     let clocks = |keys: &[&str]| keys.iter().map(|k| (k.to_string(), stamp.clone())).collect::<BTreeMap<_, _>>();
-    let list = Change { table: "task_lists".into(), id: "l".into(), fields: fields_of(&[("name", json!("L")), ("home", json!("tasks"))]), clocks: clocks(&["name", "home"]) };
+    let list = Change {
+        table: "task_lists".into(),
+        id: "l".into(),
+        fields: fields_of(&[("name", json!("L")), ("home", json!("tasks"))]),
+        clocks: clocks(&["name", "home"]),
+    };
     import_changes(&b, &[list], 1).unwrap();
     let home: Option<String> = b.query_row("SELECT home FROM task_lists WHERE id = 'l'", [], |r| r.get(0)).unwrap();
     assert_eq!(home.as_deref(), Some("tasks"));

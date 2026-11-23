@@ -10,7 +10,8 @@ use std::collections::BTreeMap;
 /// Feld-Stempel als JSON-Text. Gleiches Ergebnis wie `serde_json::to_string`, aber ohne Fehlerfall
 /// (eine Zuordnung Text → Text lässt sich immer schreiben), damit hier keine Panik möglich ist.
 pub fn clocks_text(clocks: &BTreeMap<String, String>) -> String {
-    let map: serde_json::Map<String, Value> = clocks.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
+    let map: serde_json::Map<String, Value> =
+        clocks.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
     Value::Object(map).to_string()
 }
 
@@ -27,12 +28,28 @@ pub const SECTIONS: Table =
 pub const TASKS: Table = Table {
     name: "tasks",
     fields: &[
-        "list_id", "parent_id", "section_id", "title", "notes", "due", "due_has_time", "priority", "done_at", "position",
-        "repeat_rule", "remind_minutes", "assignee_id", "created_by", "color", "links", "deleted_at",
+        "list_id",
+        "parent_id",
+        "section_id",
+        "title",
+        "notes",
+        "due",
+        "due_has_time",
+        "priority",
+        "done_at",
+        "position",
+        "repeat_rule",
+        "remind_minutes",
+        "assignee_id",
+        "created_by",
+        "color",
+        "links",
+        "deleted_at",
     ],
 };
 pub const ALARMS: Table = Table { name: "task_alarms", fields: &["task_id", "minutes_before", "deleted_at"] };
-pub const COMPLETIONS: Table = Table { name: "task_completions", fields: &["task_id", "done_at", "due_was", "deleted_at"] };
+pub const COMPLETIONS: Table =
+    Table { name: "task_completions", fields: &["task_id", "done_at", "due_was", "deleted_at"] };
 
 fn to_sql(v: &Value) -> Sql {
     match v {

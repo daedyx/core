@@ -20,13 +20,18 @@ fn creates_tasks_at_the_end_with_all_given_fields() {
         &conn,
         &l,
         None,
-        &fields(json!({"title": "Steuer", "notes": "Belege", "due": "2026-12-01", "priority": 3, "remind_minutes": 30})),
+        &fields(
+            json!({"title": "Steuer", "notes": "Belege", "due": "2026-12-01", "priority": 3, "remind_minutes": 30}),
+        ),
         3000,
     )
     .unwrap();
     assert_eq!(a.title, "Müll rausbringen");
     assert!(a.position < b.position);
-    assert_eq!((b.due.as_deref(), b.priority, b.remind_minutes, b.notes.as_str()), (Some("2026-12-01"), 3, Some(30), "Belege"));
+    assert_eq!(
+        (b.due.as_deref(), b.priority, b.remind_minutes, b.notes.as_str()),
+        (Some("2026-12-01"), 3, Some(30), "Belege")
+    );
     assert!(b.assignee_id.is_none() && b.created_by.is_none());
 }
 
@@ -43,7 +48,10 @@ fn rejects_bad_input() {
     ] {
         assert!(matches!(create_task(&conn, &l, None, &fields(bad), 1), Err(TaskError::Invalid(_))));
     }
-    assert!(matches!(create_task(&conn, "nope", None, &fields(json!({"title": "x"})), 1), Err(TaskError::ListNotFound)));
+    assert!(matches!(
+        create_task(&conn, "nope", None, &fields(json!({"title": "x"})), 1),
+        Err(TaskError::ListNotFound)
+    ));
 }
 
 #[test]
@@ -52,7 +60,10 @@ fn only_one_level_of_subtasks() {
     let a = create_task(&conn, &l, None, &fields(json!({"title": "A"})), 1000).unwrap();
     let b = create_task(&conn, &l, Some(&a.id), &fields(json!({"title": "B"})), 1000).unwrap();
     assert_eq!(b.parent_id.as_deref(), Some(a.id.as_str()));
-    assert!(matches!(create_task(&conn, &l, Some(&b.id), &fields(json!({"title": "C"})), 1000), Err(TaskError::TooDeep)));
+    assert!(matches!(
+        create_task(&conn, &l, Some(&b.id), &fields(json!({"title": "C"})), 1000),
+        Err(TaskError::TooDeep)
+    ));
     let c = create_task(&conn, &l, None, &fields(json!({"title": "C"})), 1000).unwrap();
     // eine Aufgabe mit Unteraufgaben darf nicht selbst Unteraufgabe werden
     assert!(matches!(move_task(&conn, &a.id, &l, Some(&c.id), None, 1.0, 2000), Err(TaskError::TooDeep)));
@@ -63,13 +74,18 @@ fn only_one_level_of_subtasks() {
 fn update_changes_only_named_fields_and_stamps_them() {
     let (conn, l) = setup();
     let a = create_task(&conn, &l, None, &fields(json!({"title": "A", "priority": 1})), 1000).unwrap();
-    let u = update_task(&conn, &a.id, &fields(json!({"title": "Neu", "due": "2026-12-24", "due_has_time": false})), 2000).unwrap();
+    let u =
+        update_task(&conn, &a.id, &fields(json!({"title": "Neu", "due": "2026-12-24", "due_has_time": false})), 2000)
+            .unwrap();
     assert_eq!((u.title.as_str(), u.priority, u.due.as_deref()), ("Neu", 1, Some("2026-12-24")));
     let clocks: String = conn.query_row("SELECT clocks FROM tasks WHERE id = ?1", [&a.id], |r| r.get(0)).unwrap();
     let c: std::collections::BTreeMap<String, String> = serde_json::from_str(&clocks).unwrap();
     assert!(c["title"] > c["priority"]);
     assert!(matches!(update_task(&conn, &a.id, &fields(json!({"list_id": "x"})), 3000), Err(TaskError::Invalid(_))));
-    assert!(matches!(update_task(&conn, &a.id, &fields(json!({"assignee_id": "p"})), 3000), Err(TaskError::Invalid(_))));
+    assert!(matches!(
+        update_task(&conn, &a.id, &fields(json!({"assignee_id": "p"})), 3000),
+        Err(TaskError::Invalid(_))
+    ));
 }
 
 #[test]
@@ -91,7 +107,9 @@ fn delete_removes_task_and_subtasks_but_keeps_tombstones() {
     create_task(&conn, &l, Some(&a.id), &fields(json!({"title": "K"})), 1000).unwrap();
     delete_task(&conn, &a.id, 3000).unwrap();
     assert!(store::tasks_in_list(&conn, &l).unwrap().is_empty());
-    let n: i64 = conn.query_row("SELECT count(*) FROM tasks WHERE deleted_at IS NOT NULL AND dirty = 1", [], |r| r.get(0)).unwrap();
+    let n: i64 = conn
+        .query_row("SELECT count(*) FROM tasks WHERE deleted_at IS NOT NULL AND dirty = 1", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(n, 2);
     assert!(matches!(delete_task(&conn, &a.id, 4000), Err(TaskError::TaskNotFound)));
 }
@@ -127,10 +145,19 @@ fn a_new_task_can_start_in_a_section_of_its_list() {
 fn a_section_of_another_list_or_for_a_subtask_is_refused() {
     let (conn, l, s1, _) = section_setup();
     let l2 = create_list(&conn, "Arbeit", "", 1000).unwrap().id;
-    assert!(matches!(create_task(&conn, &l2, None, &fields(json!({"title": "A", "section_id": s1})), 1), Err(TaskError::Invalid("section"))));
-    assert!(matches!(create_task(&conn, &l, None, &fields(json!({"title": "A", "section_id": "nope"})), 1), Err(TaskError::SectionNotFound)));
+    assert!(matches!(
+        create_task(&conn, &l2, None, &fields(json!({"title": "A", "section_id": s1})), 1),
+        Err(TaskError::Invalid("section"))
+    ));
+    assert!(matches!(
+        create_task(&conn, &l, None, &fields(json!({"title": "A", "section_id": "nope"})), 1),
+        Err(TaskError::SectionNotFound)
+    ));
     let p = create_task(&conn, &l, None, &fields(json!({"title": "P"})), 1).unwrap();
-    assert!(matches!(create_task(&conn, &l, Some(&p.id), &fields(json!({"title": "K", "section_id": s1})), 1), Err(TaskError::Invalid("section"))));
+    assert!(matches!(
+        create_task(&conn, &l, Some(&p.id), &fields(json!({"title": "K", "section_id": s1})), 1),
+        Err(TaskError::Invalid("section"))
+    ));
 }
 
 #[test]
@@ -174,7 +201,13 @@ fn the_month_day_anchor_is_accepted_between_1_and_31_only() {
     .unwrap();
     assert_eq!(ok.repeat.unwrap().month_day, Some(31));
     for bad in [0, 32, 255] {
-        let r = create_task(&conn, &l, None, &fields(json!({"title": "x", "repeat_rule": {"kind": "monthly", "interval": 1, "monthDay": bad}})), 1000);
+        let r = create_task(
+            &conn,
+            &l,
+            None,
+            &fields(json!({"title": "x", "repeat_rule": {"kind": "monthly", "interval": 1, "monthDay": bad}})),
+            1000,
+        );
         assert!(r.is_err(), "{bad}");
     }
 }

@@ -49,7 +49,9 @@ fn title_of(conn: &Connection, id: &str) -> String {
 fn a_new_list_with_tasks_arrives_complete_and_both_sides_end_clean() {
     let (a, b) = (fresh(), fresh());
     let l = create_list(&a, "Haushalt", "blue", 1000).unwrap();
-    let t = create_task(&a, &l.id, None, &fields(json!({"title": "Einkaufen", "due": "2026-12-01", "priority": 2})), 2000).unwrap();
+    let t =
+        create_task(&a, &l.id, None, &fields(json!({"title": "Einkaufen", "due": "2026-12-01", "priority": 2})), 2000)
+            .unwrap();
     create_task(&a, &l.id, Some(&t.id), &fields(json!({"title": "Milch"})), 3000).unwrap();
     sync(&a, &b, 9000);
     assert_eq!(dump(&a), dump(&b));
@@ -101,7 +103,14 @@ fn deleting_a_list_reaches_the_other_side_with_its_tasks() {
 fn completions_of_a_repeating_task_travel_along() {
     let (a, b) = (fresh(), fresh());
     let l = create_list(&a, "L", "", 1000).unwrap();
-    let t = create_task(&a, &l.id, None, &fields(json!({"title": "gießen", "due": "2026-11-19", "repeat_rule": {"kind": "weekly", "interval": 1}})), 1000).unwrap();
+    let t = create_task(
+        &a,
+        &l.id,
+        None,
+        &fields(json!({"title": "gießen", "due": "2026-11-19", "repeat_rule": {"kind": "weekly", "interval": 1}})),
+        1000,
+    )
+    .unwrap();
     toggle_done(&a, &t.id, 1_795_089_600_000, Berlin).unwrap();
     sync(&a, &b, 2_000_000_000_000);
     assert_eq!(dump(&a), dump(&b));
@@ -140,7 +149,10 @@ fn bad_input_is_refused_and_leaves_nothing_behind() {
         table: "tasks".into(),
         id: "t".into(),
         fields: BTreeMap::from([("list_id".to_string(), json!("fehlt")), ("title".to_string(), json!("x"))]),
-        clocks: BTreeMap::from([("list_id".to_string(), "000000000001-0000-z".to_string()), ("title".to_string(), "000000000001-0000-z".to_string())]),
+        clocks: BTreeMap::from([
+            ("list_id".to_string(), "000000000001-0000-z".to_string()),
+            ("title".to_string(), "000000000001-0000-z".to_string()),
+        ]),
     };
     assert!(import_changes(&b, &[orphan], 1).is_err());
     let n: i64 = b.query_row("SELECT count(*) FROM tasks", [], |r| r.get(0)).unwrap();

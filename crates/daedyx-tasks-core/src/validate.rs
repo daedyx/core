@@ -9,7 +9,9 @@ pub const MAX_LINKS: usize = 50;
 pub fn check_color(v: &Value) -> Result<Value, TaskError> {
     match v {
         Value::Null => Ok(Value::Null),
-        Value::String(s) if s.len() == 7 && s.strip_prefix('#').is_some_and(|h| h.chars().all(|c| c.is_ascii_hexdigit())) => {
+        Value::String(s)
+            if s.len() == 7 && s.strip_prefix('#').is_some_and(|h| h.chars().all(|c| c.is_ascii_hexdigit())) =>
+        {
             Ok(json!(s.to_ascii_uppercase()))
         }
         _ => Err(TaskError::Invalid("color")),
@@ -85,7 +87,8 @@ mod tests {
         ] {
             assert!(check_links(&bad).is_err(), "{bad}");
         }
-        let many: Vec<Value> = (0..51).map(|i| json!({"app": "desk", "kind": "mail", "ref": i.to_string(), "title": ""})).collect();
+        let many: Vec<Value> =
+            (0..51).map(|i| json!({"app": "desk", "kind": "mail", "ref": i.to_string(), "title": ""})).collect();
         assert!(check_links(&json!(many)).is_err());
     }
 }

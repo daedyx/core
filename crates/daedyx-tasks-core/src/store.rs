@@ -64,13 +64,9 @@ pub fn list(conn: &Connection, id: &str) -> Result<TaskList, TaskError> {
 }
 
 pub fn task(conn: &Connection, id: &str) -> Result<Task, TaskError> {
-    conn.query_row(
-        &format!("SELECT {TASK_COLS} FROM tasks WHERE id = ?1 AND deleted_at IS NULL"),
-        [id],
-        task_from_row,
-    )
-    .optional()?
-    .ok_or(TaskError::TaskNotFound)
+    conn.query_row(&format!("SELECT {TASK_COLS} FROM tasks WHERE id = ?1 AND deleted_at IS NULL"), [id], task_from_row)
+        .optional()?
+        .ok_or(TaskError::TaskNotFound)
 }
 
 /// Alle Aufgaben einer Liste, Unteraufgaben direkt nach ihrer Oberaufgabe (Handreihenfolge).
@@ -95,7 +91,12 @@ pub fn tasks_in_list(conn: &Connection, list_id: &str) -> Result<Vec<Task>, Task
     Ok(out)
 }
 
-pub fn max_position(conn: &Connection, table: &str, scope_sql: &str, scope: &[&dyn rusqlite::ToSql]) -> Result<f64, TaskError> {
+pub fn max_position(
+    conn: &Connection,
+    table: &str,
+    scope_sql: &str,
+    scope: &[&dyn rusqlite::ToSql],
+) -> Result<f64, TaskError> {
     let sql = format!("SELECT COALESCE(MAX(position), 0) FROM {table} WHERE deleted_at IS NULL AND {scope_sql}");
     Ok(conn.query_row(&sql, scope, |r| r.get(0))?)
 }

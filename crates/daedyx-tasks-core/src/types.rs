@@ -99,7 +99,16 @@ mod tests {
     #[test]
     fn repeat_rule_uses_camel_case_and_defaults() {
         let r: RepeatRule = serde_json::from_str(r#"{"kind":"weekly","interval":2,"weekdays":[1,3]}"#).unwrap();
-        assert_eq!(r, RepeatRule { kind: RepeatKind::Weekly, interval: 2, weekdays: vec![1, 3], from_done: false, month_day: None });
+        assert_eq!(
+            r,
+            RepeatRule {
+                kind: RepeatKind::Weekly,
+                interval: 2,
+                weekdays: vec![1, 3],
+                from_done: false,
+                month_day: None
+            }
+        );
         let r: RepeatRule = serde_json::from_str(r#"{"kind":"daily","interval":1,"fromDone":true}"#).unwrap();
         assert!(r.from_done && r.weekdays.is_empty());
         assert!(serde_json::to_string(&r).unwrap().contains("fromDone"));

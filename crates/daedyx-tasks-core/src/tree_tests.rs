@@ -49,7 +49,10 @@ fn the_limit_is_enforced_per_call() {
         let t = create_task_depth(&c, &l, parent.as_deref(), &f("x"), 1000 + i, 2).unwrap();
         parent = Some(t.id);
     }
-    assert!(matches!(create_task_depth(&c, &l, parent.as_deref(), &f("zu tief"), 2000, 2), Err(crate::TaskError::TooDeep)));
+    assert!(matches!(
+        create_task_depth(&c, &l, parent.as_deref(), &f("zu tief"), 2000, 2),
+        Err(crate::TaskError::TooDeep)
+    ));
 }
 
 #[test]
@@ -58,12 +61,24 @@ fn moving_a_subtree_checks_its_height_and_forbids_cycles() {
     let (l, ids) = chain(&c);
     let other = create_task(&c, &l, None, &f("Z"), 2000).unwrap().id;
     // A (Höhe 3) unter Z (Ebene 0): Tiefe 4 > 3
-    assert!(matches!(move_task_depth(&c, &ids[0], &l, Some(&other), None, 1.0, 3000, 3), Err(crate::TaskError::TooDeep)));
+    assert!(matches!(
+        move_task_depth(&c, &ids[0], &l, Some(&other), None, 1.0, 3000, 3),
+        Err(crate::TaskError::TooDeep)
+    ));
     assert!(move_task_depth(&c, &ids[0], &l, Some(&other), None, 1.0, 3000, 4).is_ok());
     // Zyklus: Z unter seinen eigenen Nachfahren D
-    assert!(matches!(move_task_depth(&c, &other, &l, Some(&ids[3]), None, 1.0, 4000, 9), Err(crate::TaskError::Invalid("parent"))));
-    assert!(matches!(move_task_depth(&c, &ids[1], &l, Some(&ids[1]), None, 1.0, 4000, 9), Err(crate::TaskError::Invalid("parent"))));
-    assert!(matches!(move_task_depth(&c, &ids[0], &l, Some(&ids[3]), None, 1.0, 4000, 9), Err(crate::TaskError::Invalid("parent"))));
+    assert!(matches!(
+        move_task_depth(&c, &other, &l, Some(&ids[3]), None, 1.0, 4000, 9),
+        Err(crate::TaskError::Invalid("parent"))
+    ));
+    assert!(matches!(
+        move_task_depth(&c, &ids[1], &l, Some(&ids[1]), None, 1.0, 4000, 9),
+        Err(crate::TaskError::Invalid("parent"))
+    ));
+    assert!(matches!(
+        move_task_depth(&c, &ids[0], &l, Some(&ids[3]), None, 1.0, 4000, 9),
+        Err(crate::TaskError::Invalid("parent"))
+    ));
 }
 
 #[test]
@@ -84,8 +99,11 @@ fn deleting_removes_all_descendants_as_tombstones() {
     let (l, ids) = chain(&c);
     delete_task(&c, &ids[1], 5000).unwrap();
     assert_eq!(store::tasks_in_list(&c, &l).unwrap().len(), 1);
-    let (n, dirty): (i64, i64) =
-        c.query_row("SELECT count(*), min(dirty) FROM tasks WHERE deleted_at IS NOT NULL", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    let (n, dirty): (i64, i64) = c
+        .query_row("SELECT count(*), min(dirty) FROM tasks WHERE deleted_at IS NOT NULL", [], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .unwrap();
     assert_eq!((n, dirty), (3, 1));
 }
 

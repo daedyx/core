@@ -54,7 +54,13 @@ fn by_due(tz: Tz) -> impl Fn(&Task, &Task) -> std::cmp::Ordering {
     }
 }
 
-pub fn query(conn: &Connection, view: View, list_id: Option<&str>, today: NaiveDate, tz: Tz) -> Result<Vec<Task>, TaskError> {
+pub fn query(
+    conn: &Connection,
+    view: View,
+    list_id: Option<&str>,
+    today: NaiveDate,
+    tz: Tz,
+) -> Result<Vec<Task>, TaskError> {
     match view {
         View::List => tasks_in_list(conn, list_id.ok_or(TaskError::Invalid("list"))?),
         View::All => {
@@ -89,7 +95,12 @@ pub fn query(conn: &Connection, view: View, list_id: Option<&str>, today: NaiveD
 /// Anzahl je Smart-Liste für die Seitenleiste.
 pub fn counts(conn: &Connection, today: NaiveDate, tz: Tz) -> Result<[(View, usize); 4], TaskError> {
     let n = |v| query(conn, v, None, today, tz).map(|r| r.len());
-    Ok([(View::Today, n(View::Today)?), (View::Planned, n(View::Planned)?), (View::Overdue, n(View::Overdue)?), (View::All, n(View::All)?)])
+    Ok([
+        (View::Today, n(View::Today)?),
+        (View::Planned, n(View::Planned)?),
+        (View::Overdue, n(View::Overdue)?),
+        (View::All, n(View::All)?),
+    ])
 }
 
 /// Suche in Titel und Notiz (ohne Groß-/Kleinschreibung), offene vor erledigten, höchstens `limit` Treffer.

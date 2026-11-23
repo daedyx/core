@@ -18,7 +18,13 @@ pub fn create_section(conn: &Connection, list_id: &str, name: &str, now_ms: u64)
         "INSERT INTO task_sections (id, list_id, name, updated_at) VALUES (?1, ?2, '', ?3)",
         (&id, list_id, (now_ms / 1000) as i64),
     )?;
-    apply(conn, &SECTIONS, &id, &[("list_id", json!(list_id)), ("name", json!(name)), ("position", json!(pos))], now_ms)?;
+    apply(
+        conn,
+        &SECTIONS,
+        &id,
+        &[("list_id", json!(list_id)), ("name", json!(name)), ("position", json!(pos))],
+        now_ms,
+    )?;
     store::section(conn, &id)
 }
 

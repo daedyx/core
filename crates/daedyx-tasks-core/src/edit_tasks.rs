@@ -17,15 +17,29 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
             Some(s) if !s.is_empty() && s.chars().count() <= 500 => Ok(json!(s)),
             _ => bad("title"),
         },
-        "notes" => if v.is_string() { Ok(v.clone()) } else { bad("notes") },
+        "notes" => {
+            if v.is_string() {
+                Ok(v.clone())
+            } else {
+                bad("notes")
+            }
+        }
         "priority" => match v.as_i64() {
             Some(p) if (0..=3).contains(&p) => Ok(v.clone()),
             _ => bad("priority"),
         },
-        "due_has_time" => if v.is_boolean() { Ok(json!(v.as_bool() == Some(true))) } else { bad("due_has_time") },
+        "due_has_time" => {
+            if v.is_boolean() {
+                Ok(json!(v.as_bool() == Some(true)))
+            } else {
+                bad("due_has_time")
+            }
+        }
         "due" => match v {
             Value::Null => Ok(Value::Null),
-            Value::String(s) if s.parse::<i64>().is_ok() || chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok() => {
+            Value::String(s)
+                if s.parse::<i64>().is_ok() || chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok() =>
+            {
                 Ok(v.clone())
             }
             _ => bad("due"),
@@ -50,7 +64,13 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
             Value::Number(n) if n.is_i64() => Ok(v.clone()),
             _ => bad("done_at"),
         },
-        "position" => if v.is_number() { Ok(v.clone()) } else { bad("position") },
+        "position" => {
+            if v.is_number() {
+                Ok(v.clone())
+            } else {
+                bad("position")
+            }
+        }
         "color" => check_color(v),
         "links" => check_links(v),
         _ => bad("field"),
@@ -58,7 +78,12 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
 }
 
 /// Prüft den Abschnitt für eine Aufgabe in `list_id`: gleiche Liste, Unteraufgaben ohne Abschnitt.
-fn check_section(conn: &Connection, list_id: &str, parent: Option<&str>, section: Option<&str>) -> Result<(), TaskError> {
+fn check_section(
+    conn: &Connection,
+    list_id: &str,
+    parent: Option<&str>,
+    section: Option<&str>,
+) -> Result<(), TaskError> {
     let Some(s) = section else { return Ok(()) };
     let sec = store::section(conn, s)?;
     if parent.is_some() || sec.list_id != list_id {
@@ -130,7 +155,8 @@ pub fn update_task(conn: &Connection, id: &str, patch: &Map<String, Value>, now_
     let mut changes = Vec::new();
     for (f, v) in patch {
         let name = match f.as_str() {
-            "title" | "notes" | "due" | "due_has_time" | "priority" | "repeat_rule" | "remind_minutes" | "done_at" | "color" | "links" => f.as_str(),
+            "title" | "notes" | "due" | "due_has_time" | "priority" | "repeat_rule" | "remind_minutes" | "done_at"
+            | "color" | "links" => f.as_str(),
             _ => return Err(TaskError::Invalid("field")),
         };
         changes.push((name, check(name, v)?));

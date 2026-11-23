@@ -56,7 +56,13 @@ pub fn pending(conn: &Connection, from: i64, to: i64, tz_name: &str) -> Result<V
             if fire_at < from || fire_at >= to || fired.exists((&t.id, fire_at))? {
                 continue;
             }
-            out.push(DueReminder { task_id: t.id.clone(), title: t.title.clone(), fire_at, minutes_before: min, due_has_time: t.due_has_time });
+            out.push(DueReminder {
+                task_id: t.id.clone(),
+                title: t.title.clone(),
+                fire_at,
+                minutes_before: min,
+                due_has_time: t.due_has_time,
+            });
         }
     }
     out.sort_by_key(|r| r.fire_at);
@@ -64,12 +70,20 @@ pub fn pending(conn: &Connection, from: i64, to: i64, tz_name: &str) -> Result<V
 }
 
 pub fn mark_fired(conn: &Connection, r: &DueReminder) -> Result<(), TaskError> {
-    conn.execute("INSERT OR IGNORE INTO task_alarms_fired (task_id, fire_at) VALUES (?1, ?2)", (&r.task_id, r.fire_at))?;
+    conn.execute(
+        "INSERT OR IGNORE INTO task_alarms_fired (task_id, fire_at) VALUES (?1, ?2)",
+        (&r.task_id, r.fire_at),
+    )?;
     Ok(())
 }
 
 /// Ein Durchgang: Fälliges der letzten `CATCH_UP_SECS` melden (über `fire`) und merken.
-pub fn tick(conn: &Connection, now: i64, tz_name: &str, mut fire: impl FnMut(&DueReminder)) -> Result<usize, TaskError> {
+pub fn tick(
+    conn: &Connection,
+    now: i64,
+    tz_name: &str,
+    mut fire: impl FnMut(&DueReminder),
+) -> Result<usize, TaskError> {
     conn.execute("DELETE FROM task_alarms_fired WHERE fire_at < ?1", [now.saturating_sub(2 * 86_400)])?;
     let due = pending(conn, now.saturating_sub(CATCH_UP_SECS), now.saturating_add(1), tz_name)?;
     for r in &due {
@@ -128,7 +142,8 @@ mod tests {
         use crate::edit_alarms::set_alarms;
         let conn = fresh();
         let l = create_list(&conn, "A", "", 1000).unwrap().id;
-        let t = create_task(&conn, &l, None, &fields(json!({"title": "Zahnarzt", "due": "2026-11-19"})), 1000).unwrap().id;
+        let t =
+            create_task(&conn, &l, None, &fields(json!({"title": "Zahnarzt", "due": "2026-11-19"})), 1000).unwrap().id;
         set_alarms(&conn, &t, &[30, 1440], 2000).unwrap();
         let all = pending(&conn, 0, i64::MAX, "Europe/Berlin").unwrap();
         assert_eq!(all.iter().map(|r| r.fire_at).collect::<Vec<_>>(), [NINE - 86_400, NINE - 1800]);

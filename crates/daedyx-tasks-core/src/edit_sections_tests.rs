@@ -39,7 +39,8 @@ fn rename_and_reorder_ignore_foreign_sections() {
     let b = create_section(&conn, &l.id, "Zwei", 1000).unwrap();
     let foreign = create_section(&conn, &other.id, "Fremd", 1000).unwrap();
     rename_section(&conn, &a.id, "Alpha", 2000).unwrap();
-    reorder_sections(&conn, &l.id, &[b.id.clone(), foreign.id.clone(), a.id.clone(), "unbekannt".into()], 3000).unwrap();
+    reorder_sections(&conn, &l.id, &[b.id.clone(), foreign.id.clone(), a.id.clone(), "unbekannt".into()], 3000)
+        .unwrap();
     assert_eq!(names(&conn, &l.id), ["Zwei", "Alpha"]);
     assert_eq!(names(&conn, &other.id), ["Fremd"]);
     assert_eq!(store::section(&conn, &foreign.id).unwrap().position, 1.0);
@@ -50,12 +51,17 @@ fn deleting_a_section_returns_its_cards_to_no_section_and_keeps_a_tombstone() {
     let conn = fresh();
     let l = create_list(&conn, "A", "", 1000).unwrap();
     let s = create_section(&conn, &l.id, "Offen", 1000).unwrap();
-    conn.execute("INSERT INTO tasks (id, list_id, section_id, title, updated_at) VALUES ('t1', ?1, ?2, 'x', 0)", [&l.id, &s.id]).unwrap();
+    conn.execute(
+        "INSERT INTO tasks (id, list_id, section_id, title, updated_at) VALUES ('t1', ?1, ?2, 'x', 0)",
+        [&l.id, &s.id],
+    )
+    .unwrap();
     delete_section(&conn, &s.id, 5000).unwrap();
     assert!(names(&conn, &l.id).is_empty());
     assert!(matches!(store::section(&conn, &s.id), Err(TaskError::SectionNotFound)));
     assert!(store::task(&conn, "t1").unwrap().section_id.is_none());
-    let (clocks, dirty): (String, i64) = conn.query_row("SELECT clocks, dirty FROM tasks WHERE id='t1'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    let (clocks, dirty): (String, i64) =
+        conn.query_row("SELECT clocks, dirty FROM tasks WHERE id='t1'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
     assert!(clocks.contains("section_id") && dirty == 1);
     let del: Option<i64> = conn.query_row("SELECT deleted_at FROM task_sections", [], |r| r.get(0)).unwrap();
     assert_eq!(del, Some(5));
@@ -68,6 +74,7 @@ fn deleting_a_list_tombstones_its_sections() {
     let l = create_list(&conn, "A", "", 1000).unwrap();
     create_section(&conn, &l.id, "Offen", 1000).unwrap();
     delete_list(&conn, &l.id, 5000).unwrap();
-    let n: i64 = conn.query_row("SELECT count(*) FROM task_sections WHERE deleted_at IS NOT NULL", [], |r| r.get(0)).unwrap();
+    let n: i64 =
+        conn.query_row("SELECT count(*) FROM task_sections WHERE deleted_at IS NOT NULL", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 1);
 }

@@ -20,7 +20,10 @@ pub fn create_list(conn: &Connection, name: &str, color: &str, now_ms: u64) -> R
     let name = clean_name(name)?;
     let id = new_id();
     let pos = store::max_position(conn, "task_lists", "1 = 1", &[])? + 1.0;
-    conn.execute("INSERT INTO task_lists (id, name, updated_at) VALUES (?1, ?2, ?3)", (&id, &name, (now_ms / 1000) as i64))?;
+    conn.execute(
+        "INSERT INTO task_lists (id, name, updated_at) VALUES (?1, ?2, ?3)",
+        (&id, &name, (now_ms / 1000) as i64),
+    )?;
     apply(conn, &LISTS, &id, &[("name", json!(name)), ("color", json!(color)), ("position", json!(pos))], now_ms)?;
     store::list(conn, &id)
 }
@@ -36,7 +39,13 @@ pub fn set_list_color(conn: &Connection, id: &str, color: &str, now_ms: u64) -> 
 }
 
 /// Setzt Heimat-App (`desk`/`tasks`/None) und Umzugszeitpunkt (UTC-Sekunden) der Liste; beide Felder einzeln gestempelt.
-pub fn set_list_home(conn: &Connection, id: &str, home: Option<&str>, moved_at: Option<i64>, now_ms: u64) -> Result<(), TaskError> {
+pub fn set_list_home(
+    conn: &Connection,
+    id: &str,
+    home: Option<&str>,
+    moved_at: Option<i64>,
+    now_ms: u64,
+) -> Result<(), TaskError> {
     store::list(conn, id)?;
     let home = check_home(home)?;
     apply(conn, &LISTS, id, &[("home", home), ("moved_at", json!(moved_at))], now_ms)
@@ -107,7 +116,9 @@ mod tests {
         assert!(store::lists(&conn).unwrap().is_empty());
         assert!(matches!(store::list(&conn, &l.id), Err(TaskError::ListNotFound)));
         let (n, dirty): (i64, i64) = conn
-            .query_row("SELECT count(*), min(dirty) FROM tasks WHERE deleted_at IS NOT NULL", [], |r| Ok((r.get(0)?, r.get(1)?)))
+            .query_row("SELECT count(*), min(dirty) FROM tasks WHERE deleted_at IS NOT NULL", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
             .unwrap();
         assert_eq!((n, dirty), (1, 1));
         assert!(matches!(delete_list(&conn, &l.id, 6000), Err(TaskError::ListNotFound)));

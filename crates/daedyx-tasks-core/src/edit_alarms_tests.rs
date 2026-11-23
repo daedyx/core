@@ -29,9 +29,8 @@ fn replacing_keeps_matching_rows_and_tombstones_the_rest() {
     set_alarms(&c, &t, &[10, 60], 2000).unwrap();
     set_alarms(&c, &t, &[60, 5], 3000).unwrap();
     assert_eq!(alarms(&c, &t).unwrap(), [5, 60]);
-    let (rows, dead): (i64, i64) = c
-        .query_row("SELECT count(*), count(deleted_at) FROM task_alarms", [], |r| Ok((r.get(0)?, r.get(1)?)))
-        .unwrap();
+    let (rows, dead): (i64, i64) =
+        c.query_row("SELECT count(*), count(deleted_at) FROM task_alarms", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
     assert_eq!((rows, dead), (3, 1), "60 bleibt, 10 wird Grabstein, 5 neu");
     set_alarms(&c, &t, &[10], 4000).unwrap();
     let n: i64 = c.query_row("SELECT count(*) FROM task_alarms", [], |r| r.get(0)).unwrap();

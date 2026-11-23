@@ -38,11 +38,15 @@ pub fn migrate(conn: &Connection) -> Result<(), MigrateError> {
 }
 
 fn has_column(conn: &Connection, table: &str, col: &str) -> Result<bool, rusqlite::Error> {
-    conn.query_row(&format!("SELECT 1 FROM pragma_table_info('{table}') WHERE name = ?1"), [col], |_| Ok(())).optional().map(|r| r.is_some())
+    conn.query_row(&format!("SELECT 1 FROM pragma_table_info('{table}') WHERE name = ?1"), [col], |_| Ok(()))
+        .optional()
+        .map(|r| r.is_some())
 }
 
 fn has_table(conn: &Connection, name: &str) -> Result<bool, rusqlite::Error> {
-    conn.query_row("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1", [name], |_| Ok(())).optional().map(|r| r.is_some())
+    conn.query_row("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1", [name], |_| Ok(()))
+        .optional()
+        .map(|r| r.is_some())
 }
 
 /// 0 = noch nichts da. Ohne gespeicherten Stand (Desk-Altbestand) entscheidet der Tabellenbestand.

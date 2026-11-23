@@ -26,7 +26,10 @@ fn insert_list(c: &Connection, id: &str, name: &str) {
 
 fn list_dump(c: &Connection) -> Vec<(String, String, String, i64, i64)> {
     let mut s = c.prepare("SELECT id, name, clocks, updated_at, dirty FROM task_lists ORDER BY id").unwrap();
-    s.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))).unwrap().map(|r| r.unwrap()).collect()
+    s.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect()
 }
 
 #[test]
@@ -34,7 +37,9 @@ fn a_fresh_database_gets_all_tables_and_the_current_stand() {
     let c = conn();
     migrate(&c).unwrap();
     let t = tables(&c);
-    for name in ["task_lists", "tasks", "task_completions", "task_alarms_fired", "task_meta", "task_sections", "task_alarms"] {
+    for name in
+        ["task_lists", "tasks", "task_completions", "task_alarms_fired", "task_meta", "task_sections", "task_alarms"]
+    {
         assert!(t.contains(&name.to_string()), "{name} fehlt");
     }
     assert_eq!(stored_version(&c), Some(SCHEMA_VERSION.to_string()));
@@ -157,7 +162,13 @@ fn stand_2_is_lifted_to_3_keeping_rows_and_adding_empty_columns() {
     let before = list_dump(&c);
     migrate(&c).unwrap();
     assert_eq!(list_dump(&c), before);
-    for (t, col) in [("task_sections", "color"), ("tasks", "color"), ("tasks", "links"), ("task_lists", "home"), ("task_lists", "moved_at")] {
+    for (t, col) in [
+        ("task_sections", "color"),
+        ("tasks", "color"),
+        ("tasks", "links"),
+        ("task_lists", "home"),
+        ("task_lists", "moved_at"),
+    ] {
         assert!(has_column(&c, t, col), "{t}.{col} fehlt");
     }
     let (home, moved): (Option<String>, Option<i64>) =
@@ -173,7 +184,11 @@ fn stand_3_applied_by_hand_is_the_same_as_the_migration() {
         let mut out = Vec::new();
         for t in ["task_lists", "task_sections", "tasks", "task_alarms"] {
             let mut s = c.prepare(&format!("SELECT name, type FROM pragma_table_info('{t}') ORDER BY name")).unwrap();
-            out.extend(s.query_map([], |r| Ok(format!("{t}.{}:{}", r.get::<_, String>(0)?, r.get::<_, String>(1)?))).unwrap().map(|r| r.unwrap()));
+            out.extend(
+                s.query_map([], |r| Ok(format!("{t}.{}:{}", r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+                    .unwrap()
+                    .map(|r| r.unwrap()),
+            );
         }
         out
     };
