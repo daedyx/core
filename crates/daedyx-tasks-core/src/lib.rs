@@ -12,6 +12,8 @@ pub mod merge;
 pub mod meta;
 pub mod migrate;
 pub mod outbox;
+#[cfg(test)]
+mod prop_tests;
 pub mod reminders;
 pub mod repeat;
 pub mod schema;
