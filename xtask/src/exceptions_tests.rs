@@ -36,6 +36,9 @@ fn markers_in_code_are_counted_comments_are_not() {
         count_deny(concat!("ignore = [\n  { id = \"RUST", "SEC-2024-0001\" },\n  # { id = \"RUST", "SEC-x\" }\n]")),
         1
     );
+    let licences =
+        "exceptions = [\n  { crate = \"fonts\", allow = [\"OFL-1.1\"] },\n  # { crate = \"x\", allow = [] }\n]";
+    assert_eq!(count_deny(licences), 1, "Lizenz-Ausnahmen zählen wie Meldungs-Ausnahmen");
 }
 
 #[test]

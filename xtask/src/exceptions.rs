@@ -66,9 +66,14 @@ pub fn count_rust(text: &str) -> usize {
         .sum()
 }
 
-/// Ausgenommene Meldungen in `deny.toml` (`id = "RUSTSEC-…"`, nicht auskommentiert).
+/// Ausnahmen in `deny.toml`, nicht auskommentiert: Meldungen (`id = "RUSTSEC-…"`) und Lizenz-Ausnahmen je Crate
+/// (`{ crate = "…", allow = [...] }`, eine je Zeile).
 pub fn count_deny(text: &str) -> usize {
-    text.lines().map(str::trim_start).filter(|l| !l.starts_with('#') && l.contains(concat!("\"RUST", "SEC-"))).count()
+    text.lines()
+        .map(str::trim_start)
+        .filter(|l| !l.starts_with('#'))
+        .filter(|l| l.contains(concat!("\"RUST", "SEC-")) || (l.contains("crate =") && l.contains("allow =")))
+        .count()
 }
 
 /// Alle Meldungs-Kennungen `RUSTSEC-JJJJ-NNNN` in nicht auskommentierten Zeilen.
