@@ -59,3 +59,13 @@ fn broken_dates_are_red() {
     let bad = vec![Entry { path: "x.rs".into(), expires: "bald".into() }];
     assert!(check(&found(&[("x.rs", 1)]), &bad, "2026-11-23").iter().any(|m| m.contains("Ablaufdatum")));
 }
+
+#[test]
+fn audit_ignores_must_mirror_deny_ignores() {
+    let deny = concat!("ignore = [\n { id = \"RUST", "SEC-2026-0001\", reason = \"x\" },\n]");
+    let same = concat!("ignore = [\"RUST", "SEC-2026-0001\"]");
+    let more = concat!("ignore = [\"RUST", "SEC-2026-0001\", \"RUST", "SEC-2026-0002\"]");
+    assert!(mirror_problems(deny, same).is_empty());
+    assert_eq!(mirror_problems(deny, more).len(), 1);
+    assert_eq!(mirror_problems(deny, "").len(), 1);
+}

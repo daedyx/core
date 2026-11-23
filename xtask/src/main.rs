@@ -49,7 +49,9 @@ fn run_exceptions() -> Result<String, Vec<String>> {
         }
     }
     let table = std::fs::read_to_string(exceptions::TABLE).unwrap_or_default();
-    let problems = exceptions::check(&found, &exceptions::parse_table(&table), &date::today());
+    let mut problems = exceptions::check(&found, &exceptions::parse_table(&table), &date::today());
+    let read = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+    problems.extend(exceptions::mirror_problems(&read("deny.toml"), &read(".cargo/audit.toml")));
     if problems.is_empty() {
         Ok(format!("exceptions: {} Ausnahme-Stelle(n), alle eingetragen und gültig.", found.values().sum::<usize>()))
     } else {

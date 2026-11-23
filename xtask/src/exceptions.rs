@@ -52,6 +52,26 @@ pub fn count_deny(text: &str) -> usize {
     text.lines().map(str::trim_start).filter(|l| !l.starts_with('#') && l.contains(concat!("\"RUST", "SEC-"))).count()
 }
 
+/// Alle Meldungs-Kennungen `RUSTSEC-JJJJ-NNNN` in nicht auskommentierten Zeilen.
+fn advisory_ids(text: &str) -> std::collections::BTreeSet<String> {
+    let prefix = concat!("RUST", "SEC-");
+    text.lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .flat_map(|l| l.match_indices(prefix).map(move |(i, _)| l.get(i..).unwrap_or_default()))
+        .map(|rest| rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-').collect())
+        .collect()
+}
+
+/// `cargo audit` liest seine Ausnahmen aus `.cargo/audit.toml`; sie müssen genau denen in `deny.toml` entsprechen,
+/// damit es nur eine Liste (mit Einträgen in der Tabelle) gibt.
+pub fn mirror_problems(deny: &str, audit: &str) -> Vec<String> {
+    if advisory_ids(deny) == advisory_ids(audit) {
+        Vec::new()
+    } else {
+        vec!["Ausnahmen in .cargo/audit.toml und deny.toml unterscheiden sich".to_string()]
+    }
+}
+
 /// Probleme (leer = grün). `found`: Datei → Anzahl Stellen (nur Dateien mit mindestens einer Stelle).
 pub fn check(found: &BTreeMap<String, usize>, entries: &[Entry], today: &str) -> Vec<String> {
     let mut listed: BTreeMap<&str, usize> = BTreeMap::new();
