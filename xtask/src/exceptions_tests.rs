@@ -16,7 +16,10 @@ fn found(pairs: &[(&str, usize)]) -> BTreeMap<String, usize> {
 fn table_rows_are_parsed_without_header() {
     let e = parse_table(TABLE_MD);
     assert_eq!(e.len(), 3);
-    assert_eq!(e.first(), Some(&Entry { path: "src/a.rs".into(), expires: "2027-03-31".into() }));
+    assert_eq!(
+        e.first(),
+        Some(&Entry { path: "src/a.rs".into(), rule: "clippy::expect_used".into(), expires: "2027-03-31".into() })
+    );
 }
 
 #[test]
@@ -56,7 +59,7 @@ fn unlisted_or_surplus_or_expired_are_red() {
 
 #[test]
 fn broken_dates_are_red() {
-    let bad = vec![Entry { path: "x.rs".into(), expires: "bald".into() }];
+    let bad = vec![Entry { path: "x.rs".into(), rule: "clippy::x".into(), expires: "bald".into() }];
     assert!(check(&found(&[("x.rs", 1)]), &bad, "2026-11-23").iter().any(|m| m.contains("Ablaufdatum")));
 }
 
@@ -68,4 +71,20 @@ fn audit_ignores_must_mirror_deny_ignores() {
     assert!(mirror_problems(deny, same).is_empty());
     assert_eq!(mirror_problems(deny, more).len(), 1);
     assert_eq!(mirror_problems(deny, "").len(), 1);
+}
+
+#[test]
+fn scan_rows_allow_one_rule_in_one_file_until_they_expire() {
+    let md = "\
+| A-1 | .github/workflows/release.yml | scan:secret-im-workflow | alt | B | 2026-11-23 | 2027-01-31 |
+| A-2 | docs/alt.md | scan:mailadresse | alt | B | 2026-11-23 | 2026-01-01 |
+";
+    let e = parse_table(md);
+    assert_eq!(e.first().map(|x| x.rule.as_str()), Some("scan:secret-im-workflow"));
+    let allowed = scan_allowances(&e, "2026-11-23");
+    assert!(allowed.contains(&(".github/workflows/release.yml".to_string(), "secret-im-workflow".to_string())));
+    assert_eq!(allowed.len(), 1, "abgelaufene Zeile erlaubt nichts mehr");
+    // Scan-Zeilen zählen nicht als Code-Stellen; abgelaufen bleibt rot.
+    let p = check(&BTreeMap::new(), &e, "2026-11-23");
+    assert_eq!(p.len(), 1, "{p:?}");
 }

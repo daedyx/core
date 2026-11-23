@@ -15,5 +15,8 @@ oder ein abgelaufener Eintrag sind rot.
 | A-006 | deny.toml | RUSTSEC-2026-0555 (chrono-tz nicht gepflegt) | wie A-005 | wie A-004 | 2026-11-23 | 2027-02-28 |
 | A-007 | xtask/src/main.rs | clippy::print_stdout, clippy::print_stderr | Das Prüfwerkzeug meldet Ergebnisse auf der Konsole; das ist seine Aufgabe. Ausgegeben werden nur Datei, Zeile und Regel, nie der gefundene Text. Läuft nie in einer App. | Bau-Chat, Björns Ja ausstehend | 2026-11-23 | 2027-11-23 |
 
+Eine Zeile mit Regel `scan:<regel>` (z. B. `scan:secret-im-workflow`) erlaubt genau diesen Fund des Scans in genau
+dieser Datei bis zum Ablaufdatum; sie zählt nicht als Code-Stelle. Gedacht nur für Altlasten, deren Ablösung beschlossen ist.
+
 Format für `cargo xtask exceptions`: Spalte 2 ist der Pfad (genau wie im Repo), Spalte 7 ein Datum `JJJJ-MM-TT`.
 Eine Datei mit zwei Ausnahmen bekommt zwei Zeilen.

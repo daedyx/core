@@ -6,7 +6,11 @@ const ALLOWED_MAIL_DOMAINS: [&str; 5] =
     ["example.com", "example.org", "example.net", "users.noreply.github.com", "noreply.github.com"];
 const ALLOWED_MAIL_ENDINGS: [&str; 4] = [".example", ".test", ".invalid", ".localhost"];
 /// Platzhalter nach `Users/` oder `home/`, die keinen echten Benutzer nennen.
-const PATH_PLACEHOLDERS: [&str; 8] = ["public", "default", "name", "user", "username", "runner", "benutzer", "me"];
+/// Dazu gilt jeder einzelne Buchstabe als Platzhalter (`C:\Users\x`).
+const PATH_PLACEHOLDERS: [&str; 10] =
+    ["public", "default", "name", "user", "username", "runner", "benutzer", "me", "beispiel", "example"];
+/// Rollen-Adressen ohne Person dahinter.
+const ROLE_LOCAL_PARTS: [&[u8]; 2] = [b"noreply", b"no-reply"];
 const TOKEN_PREFIXES: [&str; 10] =
     ["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_", "glpat-", "xoxb-", "xoxp-", "sk-ant-"];
 
@@ -40,7 +44,8 @@ pub fn has_real_mail(line: &str) -> bool {
         if local.is_empty() || !tld_ok {
             return false;
         }
-        !(local == b"git" && domain == "github.com") && !mail_domain_allowed(domain)
+        let role = ROLE_LOCAL_PARTS.iter().any(|r| local.eq_ignore_ascii_case(r));
+        !role && !(local == b"git" && domain == "github.com") && !mail_domain_allowed(domain)
     })
 }
 
@@ -60,7 +65,7 @@ pub fn has_user_path(line: &str) -> bool {
         let rest = b.get(start.saturating_add(len)..).unwrap_or_default();
         let name: Vec<u8> = rest.iter().take_while(|c| !b"\\/ \"'`)<>,;".contains(c)).copied().collect();
         ok_before
-            && !name.is_empty()
+            && name.len() > 1
             && !b"<%${*.~".contains(name.first().unwrap_or(&b'<'))
             && !PATH_PLACEHOLDERS.iter().any(|p| p.as_bytes() == name.as_slice())
     };

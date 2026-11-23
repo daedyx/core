@@ -16,11 +16,26 @@ const RUST_MARKERS: [&str; 8] = [
     concat!("unsafe", " impl"),
 ];
 
-/// Ein Eintrag der Tabelle: Datei und Ablaufdatum `JJJJ-MM-TT`.
+/// Ein Eintrag der Tabelle: Datei, Regel und Ablaufdatum `JJJJ-MM-TT`. Regeln `scan:<regel>` erlauben einen
+/// Scan-Fund in genau dieser Datei (z. B. eine Altlast, deren Ablösung beschlossen ist) und zählen nicht als Code-Stelle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub path: String,
+    pub rule: String,
     pub expires: String,
+}
+
+fn valid_until(e: &Entry, today: &str) -> bool {
+    e.expires.len() == 10 && e.expires.bytes().filter(|c| *c == b'-').count() == 2 && e.expires.as_str() >= today
+}
+
+/// Erlaubte Scan-Funde (Datei, Regel) aus gültigen `scan:`-Zeilen.
+pub fn scan_allowances(entries: &[Entry], today: &str) -> std::collections::BTreeSet<(String, String)> {
+    entries
+        .iter()
+        .filter(|e| valid_until(e, today))
+        .filter_map(|e| Some((e.path.clone(), e.rule.strip_prefix("scan:")?.to_string())))
+        .collect()
 }
 
 /// Zeilen `| Nr. | Datei | Regel | Grund | Entscheid | Datum | Ablauf |`; Kopf- und Trennzeilen zählen nicht.
@@ -33,7 +48,11 @@ pub fn parse_table(md: &str) -> Vec<Entry> {
             if nr.is_empty() || nr.starts_with("Nr") || nr.starts_with("---") {
                 return None;
             }
-            Some(Entry { path: cells.get(2)?.to_string(), expires: cells.get(7)?.to_string() })
+            Some(Entry {
+                path: cells.get(2)?.to_string(),
+                rule: cells.get(3)?.to_string(),
+                expires: cells.get(7)?.to_string(),
+            })
         })
         .collect()
 }
@@ -77,8 +96,10 @@ pub fn check(found: &BTreeMap<String, usize>, entries: &[Entry], today: &str) ->
     let mut listed: BTreeMap<&str, usize> = BTreeMap::new();
     let mut problems = Vec::new();
     for e in entries {
-        let n = listed.entry(e.path.as_str()).or_insert(0);
-        *n = n.saturating_add(1);
+        if !e.rule.starts_with("scan:") {
+            let n = listed.entry(e.path.as_str()).or_insert(0);
+            *n = n.saturating_add(1);
+        }
         let valid_date = e.expires.len() == 10 && e.expires.bytes().filter(|c| *c == b'-').count() == 2;
         if !valid_date {
             problems.push(format!("{}: Ablaufdatum fehlt oder ist kein JJJJ-MM-TT", e.path));

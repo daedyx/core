@@ -13,6 +13,8 @@ use std::process::ExitCode;
 
 fn run_scan(staged: bool) -> Result<String, Vec<String>> {
     let (words, with_list) = wordlist::load();
+    let table = exceptions::parse_table(&std::fs::read_to_string(exceptions::TABLE).unwrap_or_default());
+    let allowed = exceptions::scan_allowances(&table, &date::today());
     let paths = if staged { files::staged() } else { files::tracked() }.map_err(|e| vec![e])?;
     let mut findings = Vec::new();
     for path in &paths {
@@ -21,7 +23,8 @@ fn run_scan(staged: bool) -> Result<String, Vec<String>> {
         } else {
             files::worktree_content(path)
         };
-        findings.extend(scan::scan_file(path, &content.unwrap_or_default(), &words));
+        let found = scan::scan_file(path, &content.unwrap_or_default(), &words);
+        findings.extend(found.into_iter().filter(|f| !allowed.contains(&(f.path.clone(), f.rule.to_string()))));
     }
     if findings.is_empty() {
         let list = if with_list { "mit lokaler Wortliste" } else { "ohne lokale Wortliste" };

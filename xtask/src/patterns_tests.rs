@@ -72,3 +72,12 @@ fn listed_words_ignore_case() {
     assert!(!has_listed_word("Schule", &words));
     assert!(!has_listed_word("irgendwas", &[]));
 }
+
+#[test]
+fn role_addresses_and_obvious_placeholder_names_are_not_personal() {
+    assert!(!has_real_mail(concat!("Co-Authored-By: Bot <noreply", "@", "firma.example.de>")));
+    assert!(!has_real_mail(concat!("no-reply", "@", "dienst.de")));
+    assert!(!has_user_path(concat!("C:", "\\\\Users\\\\", "x\\\\AppData")));
+    assert!(!has_user_path(concat!("C:", "\\Users\\", "Beispiel\\AppData")));
+    assert!(has_user_path(concat!("C:", "\\Users\\", "xy\\AppData")));
+}
