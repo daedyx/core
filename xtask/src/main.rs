@@ -9,7 +9,6 @@ mod scan;
 mod wordlist;
 
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::process::ExitCode;
 
 fn run_scan(staged: bool) -> Result<String, Vec<String>> {
@@ -59,6 +58,8 @@ fn run_exceptions() -> Result<String, Vec<String>> {
     }
 }
 
+/// Ausgabe auf die Konsole ist die Aufgabe dieses Werkzeugs (läuft nie in einer App).
+#[allow(clippy::print_stdout, clippy::print_stderr, reason = "SICHERHEIT-AUSNAHMEN A-007")]
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
@@ -68,13 +69,12 @@ fn main() -> ExitCode {
     };
     match result {
         Ok(msg) => {
-            let _ = writeln!(std::io::stdout().lock(), "{msg}");
+            println!("{msg}");
             ExitCode::SUCCESS
         }
         Err(problems) => {
-            let mut err = std::io::stderr().lock();
             for p in problems {
-                let _ = writeln!(err, "{p}");
+                eprintln!("{p}");
             }
             ExitCode::FAILURE
         }

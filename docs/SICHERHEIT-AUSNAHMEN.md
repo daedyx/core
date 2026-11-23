@@ -13,6 +13,7 @@ oder ein abgelaufener Eintrag sind rot.
 | A-004 | deny.toml | RUSTSEC-2026-0459 (libsqlite3-sys) | Lokale Lücke, braucht präparierte Datenbank- und WAL-Datei; der Kern bündelt SQLite nur in Tests. Die Apps bauen mit SQLCipher, und auch die neue libsqlite3-sys 0.39 bündelt dort noch ein betroffenes SQLite; ein Sprung schließt die Lücke also nicht. | Bau-Chat nach Empfehlung „haertung-libsqlite3-chrono“, Björns Ja ausstehend | 2026-11-23 | 2027-02-28 |
 | A-005 | deny.toml | RUSTSEC-2026-0543 (chrono nicht gepflegt) | Keine bekannte Lücke, nur „nicht mehr gepflegt“. Ersatz (z. B. jiff) ist ein eigener Auftrag, weil Wiederholung und Erinnerungen daran hängen. | wie A-004 | 2026-11-23 | 2027-02-28 |
 | A-006 | deny.toml | RUSTSEC-2026-0555 (chrono-tz nicht gepflegt) | wie A-005 | wie A-004 | 2026-11-23 | 2027-02-28 |
+| A-007 | xtask/src/main.rs | clippy::print_stdout, clippy::print_stderr | Das Prüfwerkzeug meldet Ergebnisse auf der Konsole; das ist seine Aufgabe. Ausgegeben werden nur Datei, Zeile und Regel, nie der gefundene Text. Läuft nie in einer App. | Bau-Chat, Björns Ja ausstehend | 2026-11-23 | 2027-11-23 |
 
 Format für `cargo xtask exceptions`: Spalte 2 ist der Pfad (genau wie im Repo), Spalte 7 ein Datum `JJJJ-MM-TT`.
 Eine Datei mit zwei Ausnahmen bekommt zwei Zeilen.
