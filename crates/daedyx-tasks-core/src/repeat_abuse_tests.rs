@@ -113,3 +113,12 @@ fn ordinary_dates_still_advance() {
     assert_eq!(advance(&r, "2026-11-18", false, 0, Berlin).as_deref(), Some("2026-11-19"));
     assert_eq!(advance(&r, "1795096800", true, 0, Berlin).as_deref(), Some("1795183200"));
 }
+
+#[test]
+fn plain_dates_outside_1970_to_9999_do_not_advance() {
+    let r = rule(RepeatKind::Daily, 1, &[], None);
+    for due in ["1969-12-31", "0000-01-01", "9999-12-31"] {
+        assert_eq!(advance(&r, due, false, 0, Berlin), None, "{due}");
+    }
+    assert_eq!(advance(&r, "1970-01-01", false, 0, Berlin).as_deref(), Some("1970-01-02"));
+}

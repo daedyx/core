@@ -37,8 +37,10 @@ pub fn next_stamp(conn: &Connection, wall_ms: u64) -> Result<String, TaskError> 
 }
 
 /// Fremden Stempel einrechnen, damit spätere eigene Stempel größer sind (beim Einspielen fremder Änderungen).
+/// Die Grenze „höchstens einen Tag voraus“ prüft der Abgleich vorher (`import_check`).
 pub fn observe(conn: &Connection, stamp: &str) -> Result<(), TaskError> {
-    let Some(remote) = Hlc::parse(stamp) else { return Ok(()) };
+    // Nur die genaue Textform: sonst wären Text- und Zeitordnung nicht mehr dieselbe (Review Kern-Fix M-1).
+    let Some(remote) = super::hlc::canonical(stamp) else { return Ok(()) };
     let mut clock = Clock::new(&device_id(conn)?);
     if let Some(last) = get(conn, "clock")?.and_then(|s| Hlc::parse(&s)) {
         clock.observe(&last);

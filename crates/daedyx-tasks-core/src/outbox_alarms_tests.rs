@@ -60,7 +60,7 @@ fn the_same_alarm_row_changed_on_both_sides_goes_to_the_newer_stamp() {
 }
 
 #[test]
-fn an_alarm_for_a_task_not_yet_known_is_refused_like_any_orphan() {
+fn an_alarm_for_a_task_not_yet_known_waits_like_any_orphan() {
     let b = fresh();
     let stamp = "000000000001-0000-z".to_string();
     let c = Change {
@@ -69,7 +69,7 @@ fn an_alarm_for_a_task_not_yet_known_is_refused_like_any_orphan() {
         fields: BTreeMap::from([("task_id".to_string(), json!("fehlt")), ("minutes_before".to_string(), json!(5))]),
         clocks: BTreeMap::from([("task_id".to_string(), stamp.clone()), ("minutes_before".to_string(), stamp)]),
     };
-    assert!(import_changes(&b, &[c], 1).is_err());
+    assert_eq!(import_changes_counted(&b, &[c], 1).unwrap(), 1, "wartet, bricht den Stapel nicht ab");
     let n: i64 = b.query_row("SELECT count(*) FROM task_alarms", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 0);
 }

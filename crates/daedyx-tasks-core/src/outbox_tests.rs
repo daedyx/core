@@ -141,7 +141,7 @@ fn after_importing_a_newer_stamp_local_edits_get_even_newer_stamps() {
 }
 
 #[test]
-fn bad_input_is_refused_and_leaves_nothing_behind() {
+fn bad_input_is_refused_or_waits_and_leaves_nothing_behind() {
     let b = fresh();
     let bad = Change { table: "mail".into(), id: "x".into(), fields: BTreeMap::new(), clocks: BTreeMap::new() };
     assert!(import_changes(&b, &[bad], 1).is_err());
@@ -154,7 +154,7 @@ fn bad_input_is_refused_and_leaves_nothing_behind() {
             ("title".to_string(), "000000000001-0000-z".to_string()),
         ]),
     };
-    assert!(import_changes(&b, &[orphan], 1).is_err());
+    assert_eq!(import_changes_counted(&b, &[orphan], 1).unwrap(), 1, "Waise wartet (Review Kern-Fix N-1)");
     let n: i64 = b.query_row("SELECT count(*) FROM tasks", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 0);
 }

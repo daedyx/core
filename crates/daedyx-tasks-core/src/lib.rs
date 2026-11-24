@@ -1,6 +1,6 @@
 //! Daedyx Aufgaben-Kern (lokal, sync-fähig). Kein Tauri, keine eigene Datenbank: alles nimmt `&Connection`.
 //! Schema und Brücke: `migrate`, Stände in `schema`.
-mod due_time;
+pub mod due_time;
 pub mod edit_alarms;
 pub mod edit_done;
 pub mod edit_lists;

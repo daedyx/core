@@ -2,8 +2,7 @@
 //! Heute nur zwischen zwei Datenbanken in den Tests belegt; der spätere Server-Transport schickt dieselben
 //! `Change`-Listen und ruft `mark_synced` nach der Bestätigung. Das Format kennt keine festen Feldnamen.
 use super::errors::TaskError;
-use super::merge::{merge, Record};
-use super::meta;
+use super::merge::Record;
 use super::stamp::{Table, ALARMS, COMPLETIONS, LISTS, SECTIONS, TASKS};
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OptionalExtension};
@@ -88,97 +87,9 @@ pub fn mark_synced(conn: &Connection, sent: &[Change]) -> Result<(), TaskError> 
     Ok(())
 }
 
-fn ensure_row(conn: &Connection, table: &Table, c: &Change, now: i64) -> Result<(), TaskError> {
-    let text = |f: &str| c.fields.get(f).and_then(Value::as_str).unwrap_or_default().to_string();
-    match table.name {
-        "task_lists" => {
-            conn.execute("INSERT OR IGNORE INTO task_lists (id, name, updated_at) VALUES (?1, '', ?2)", (&c.id, now))?
-        }
-        "task_sections" => conn.execute(
-            "INSERT OR IGNORE INTO task_sections (id, list_id, name, updated_at) VALUES (?1, ?2, '', ?3)",
-            (&c.id, text("list_id"), now),
-        )?,
-        "tasks" => conn.execute(
-            "INSERT OR IGNORE INTO tasks (id, list_id, title, updated_at) VALUES (?1, ?2, '', ?3)",
-            (&c.id, text("list_id"), now),
-        )?,
-        "task_alarms" => conn.execute(
-            "INSERT OR IGNORE INTO task_alarms (id, task_id, updated_at) VALUES (?1, ?2, ?3)",
-            (&c.id, text("task_id"), now),
-        )?,
-        _ => conn.execute(
-            "INSERT OR IGNORE INTO task_completions (id, task_id, done_at, updated_at) VALUES (?1, ?2, 0, ?3)",
-            (&c.id, text("task_id"), now),
-        )?,
-    };
-    Ok(())
-}
-
-/// Spielt fremde Änderungen ein. Je Feld gewinnt der neuere Stempel; was lokal neuer ist, bleibt `dirty`.
-pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Result<(), TaskError> {
-    let now = (now_ms / 1000) as i64;
-    let tx = conn.unchecked_transaction()?;
-    let mut sorted: Vec<&Change> = changes.iter().collect();
-    // Aufgaben innerhalb des Stapels nach Tiefe der Elternkette, damit Eltern vor Kindern eingespielt werden.
-    let parents: BTreeMap<&str, &str> = changes
-        .iter()
-        .filter(|c| c.table == "tasks")
-        .filter_map(|c| Some((c.id.as_str(), c.fields.get("parent_id")?.as_str()?)))
-        .collect();
-    let depth = |c: &Change| {
-        let (mut n, mut cur) = (0usize, c.id.as_str());
-        while let Some(p) = parents.get(cur) {
-            n = n.saturating_add(1);
-            cur = p;
-            if n > 1000 {
-                break;
-            }
-        }
-        n
-    };
-    let rank = |c: &Change| {
-        let t = TABLES.iter().position(|t| t.name == c.table).unwrap_or(0);
-        (t, if c.table == "tasks" { depth(c) } else { 0 })
-    };
-    sorted.sort_by_key(|c| rank(c));
-    for c in sorted {
-        let table = table_by_name(&c.table)?;
-        for stamp in c.clocks.values() {
-            meta::observe(&tx, stamp)?;
-        }
-        ensure_row(&tx, table, c, now)?;
-        let remote =
-            super::import_check::sanitized(table.name, Record { fields: c.fields.clone(), clocks: c.clocks.clone() });
-        let local = read(&tx, table, &c.id)?.unwrap_or_default();
-        let merged = merge(&local, &remote);
-        let local_newer = merged != remote;
-        let mut sets: Vec<String> = Vec::new();
-        let mut params: Vec<rusqlite::types::Value> = Vec::new();
-        for (f, v) in &merged.fields {
-            if !table.fields.contains(&f.as_str()) {
-                continue;
-            }
-            params.push(match v {
-                Value::Null => rusqlite::types::Value::Null,
-                Value::Number(n) if n.is_i64() => rusqlite::types::Value::Integer(n.as_i64().unwrap_or(0)),
-                Value::Number(n) => rusqlite::types::Value::Real(n.as_f64().unwrap_or(0.0)),
-                Value::String(s) => rusqlite::types::Value::Text(s.clone()),
-                other => rusqlite::types::Value::Text(other.to_string()),
-            });
-            sets.push(format!("{f} = ?{}", params.len()));
-        }
-        params.push(rusqlite::types::Value::Text(super::stamp::clocks_text(&merged.clocks)));
-        sets.push(format!("clocks = ?{}", params.len()));
-        params.push(rusqlite::types::Value::Integer(now));
-        sets.push(format!("updated_at = ?{}", params.len()));
-        sets.push(format!("dirty = {}", local_newer as i64));
-        params.push(rusqlite::types::Value::Text(c.id.clone()));
-        let sql = format!("UPDATE {} SET {} WHERE id = ?{}", table.name, sets.join(", "), params.len());
-        tx.execute(&sql, rusqlite::params_from_iter(params))?;
-    }
-    tx.commit()?;
-    Ok(())
-}
+#[path = "outbox_import.rs"]
+mod import;
+pub use import::{import_changes, import_changes_counted};
 
 #[cfg(test)]
 #[path = "outbox_alarms_tests.rs"]
@@ -189,6 +100,9 @@ mod check_tests;
 #[cfg(test)]
 #[path = "outbox_sections_tests.rs"]
 mod sections_tests;
+#[cfg(test)]
+#[path = "outbox_stamp_tests.rs"]
+mod stamp_tests;
 #[cfg(test)]
 #[path = "outbox_stand3_tests.rs"]
 mod stand3_tests;

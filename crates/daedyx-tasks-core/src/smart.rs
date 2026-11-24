@@ -25,7 +25,7 @@ pub fn due_day(t: &Task, tz: Tz) -> Option<NaiveDate> {
     if t.due_has_time {
         Some(crate::due_time::local_at(tz, due.parse().ok()?)?.date())
     } else {
-        NaiveDate::parse_from_str(due, "%Y-%m-%d").ok()
+        crate::due_time::due_date(due)
     }
 }
 

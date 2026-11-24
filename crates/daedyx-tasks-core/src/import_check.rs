@@ -1,8 +1,9 @@
-//! Prüfung fremder Werte im Abgleich: dieselben Regeln wie die Eingabe (`edit_tasks`, `edit_alarms`), aber im
+//! Prüfung fremder Werte und Stempel im Abgleich: dieselben Regeln wie die Eingabe (`edit_tasks`, `edit_alarms`), aber im
 //! Speicherformat (Wahrheitswerte als 0/1, Regeln als JSON-Text). Ein ungültiger Wert wird verworfen (samt Stempel),
 //! der lokale bleibt. `merge` selbst bleibt allgemein, damit neue Felder dort keine Änderung brauchen.
 use super::due_time::valid_due_text;
 use super::edit_alarms::MAX_MINUTES;
+use super::hlc::canonical;
 use super::merge::Record;
 use super::repeat::valid_rule;
 use super::types::RepeatRule;
@@ -35,11 +36,19 @@ pub(crate) fn acceptable(table: &str, field: &str, v: &Value) -> bool {
     }
 }
 
-/// Die fremde Änderung ohne unzulässige Felder.
-pub(crate) fn sanitized(table: &str, remote: Record) -> Record {
+/// Fremde Stempel höchstens so weit vor der eigenen Zeit (sonst friert die eigene Uhr ein).
+const MAX_AHEAD_MS: u64 = 86_400_000;
+
+/// Stempel in genauer Textform und höchstens einen Tag nach `now_ms` (Review Kern-Fix M-1).
+fn stamp_ok(stamp: &str, now_ms: u64) -> bool {
+    canonical(stamp).is_some_and(|h| h.ms <= now_ms.saturating_add(MAX_AHEAD_MS))
+}
+
+/// Die fremde Änderung ohne unzulässige Felder und ohne Felder mit unzulässigem Stempel.
+pub(crate) fn sanitized(table: &str, remote: Record, now_ms: u64) -> Record {
     let mut out = Record::default();
     for (f, v) in remote.fields {
-        if let Some(c) = remote.clocks.get(&f).filter(|_| acceptable(table, &f, &v)) {
+        if let Some(c) = remote.clocks.get(&f).filter(|c| stamp_ok(c, now_ms) && acceptable(table, &f, &v)) {
             out.set(&f, v, c);
         }
     }

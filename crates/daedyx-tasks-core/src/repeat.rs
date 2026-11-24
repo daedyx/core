@@ -1,6 +1,6 @@
 //! Nächste Fälligkeit einer wiederkehrenden Aufgabe. Reine Funktionen, keine Datenbank.
 //! Ortszeit bleibt über die Zeitumstellung stabil (Fälligkeit „9:00“ bleibt 9:00 Ortszeit).
-use super::due_time::{due_secs, in_range, local_at};
+use super::due_time::{due_date, due_secs, in_range, local_at};
 use super::types::{RepeatKind, RepeatRule};
 use chrono::{Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Weekday};
 use chrono_tz::Tz;
@@ -107,11 +107,12 @@ pub fn advance(rule: &RepeatRule, due: &str, due_has_time: bool, done_at: i64, t
         }
         None
     } else {
-        let mut base = if rule.from_done { done_day } else { NaiveDate::parse_from_str(due, "%Y-%m-%d").ok()? };
+        let mut base = if rule.from_done { done_day } else { due_date(due)? };
         for _ in 0..MAX_STEPS {
             base = next_date(rule, base)?;
             if base > done_day || rule.from_done {
-                return Some(base.format("%Y-%m-%d").to_string());
+                let text = base.format("%Y-%m-%d").to_string();
+                return due_date(&text).map(|_| text);
             }
         }
         None

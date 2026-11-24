@@ -9,7 +9,8 @@ use crate::store::task;
 use crate::test_db::fresh;
 use serde_json::json;
 
-const LATER: &str = "999999999999-0000-z";
+/// 10 000 000 ms: später als alle lokalen Stempel der Tests, aber nicht mehr als einen Tag nach dem Einspielen.
+const LATER: &str = "000000989680-0000-z";
 
 fn setup() -> (Connection, String) {
     let conn = fresh();
