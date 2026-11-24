@@ -4,6 +4,8 @@
 //! - `clippy.toml`: Schlüssel außerhalb der Grundliste und fehlende Sperren sind Ausnahme-Stellen.
 //!
 //! `.cargo/config.toml` und Toolchain-Dateien prüft `cargo_config`.
+use crate::manifest_allow;
+pub use crate::manifest_allow::crate_sites;
 use crate::toml_lite::{compact, elements, field, items, unquote};
 
 const FORBID: u8 = 3;
@@ -96,6 +98,7 @@ pub fn workspace(text: &str) -> (Vec<String>, Vec<String>) {
         .filter(|i| i.key.starts_with("workspace.lints.") && level(&i.value) == 0)
         .filter(|i| !REQUIRED.iter().any(|(t, l, _)| i.key == format!("workspace.lints.{t}.{l}")))
         .map(|i| format!("{}=allow", i.key))
+        .chain(manifest_allow::root_sites(&all))
         .collect();
     (problems, sites)
 }

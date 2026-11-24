@@ -5,7 +5,8 @@
 pub enum Tok {
     Ident(String),
     Punct(char),
-    Lit,
+    /// Zeichenkette mit ihrem Quelltext (samt Anführungszeichen), z. B. für `target_os = "macos"`.
+    Lit(String),
 }
 
 fn at(c: &[char], i: usize) -> Option<char> {
@@ -94,8 +95,9 @@ pub fn tokens(src: &str) -> Vec<Tok> {
         } else if ch == '/' && next == Some('*') {
             i = block_comment_end(&c, i);
         } else if ch == '"' {
+            let start = i;
             i = string_end(&c, i.saturating_add(1));
-            out.push(Tok::Lit);
+            out.push(Tok::Lit(c.get(start..i).unwrap_or_default().iter().collect()));
         } else if ch == '\'' {
             i = quote_end(&c, i);
         } else if ch.is_alphanumeric() || ch == '_' {
@@ -104,8 +106,9 @@ pub fn tokens(src: &str) -> Vec<Tok> {
             i = i.saturating_add(len);
             let raw = if matches!(word.as_str(), "r" | "br" | "cr") { raw_string_end(&c, i) } else { None };
             if let Some(end) = raw {
+                let text: String = c.get(i..end).unwrap_or_default().iter().collect();
                 i = end;
-                out.push(Tok::Lit);
+                out.push(Tok::Lit(text));
             } else {
                 out.push(Tok::Ident(word));
             }
