@@ -1,9 +1,10 @@
 # Sicherheits-Ausnahmen (daedyx-core)
 
 Jede Ausnahme von einer Regel aus `docs/SICHERHEIT.md` steht hier: `#[allow(...)]` im Code, `ignore` in
-`deny.toml`, `#[ignore]` an Tests, `unsafe`. Ohne Eintrag ist die Ausnahme nicht erlaubt. Die CI zählt die
-Stellen im Code (`cargo xtask exceptions`) und vergleicht sie mit dieser Tabelle; mehr Stellen als Einträge
-oder ein abgelaufener Eintrag sind rot.
+`deny.toml`, `#[ignore]` an Tests, `unsafe`. Ohne Eintrag ist die Ausnahme nicht erlaubt. Dazu zählen auch
+Lockerungen in `deny.toml`, `clippy.toml`, `.cargo/config.toml` und `.cargo/audit.toml`. Die CI sucht die Stellen
+(`cargo xtask exceptions`) und vergleicht sie mit dieser Tabelle; eine Stelle ohne passende Zeile, eine Zeile ohne
+Stelle oder ein abgelaufener Eintrag sind rot.
 
 | Nr. | Datei | Regel | Grund | Entscheid von | Datum | Ablauf |
 |---|---|---|---|---|---|---|
@@ -18,5 +19,22 @@ oder ein abgelaufener Eintrag sind rot.
 Eine Zeile mit Regel `scan:<regel>` (z. B. `scan:secret-im-workflow`) erlaubt genau diesen Fund des Scans in genau
 dieser Datei bis zum Ablaufdatum; sie zählt nicht als Code-Stelle. Gedacht nur für Altlasten, deren Ablösung beschlossen ist.
 
-Format für `cargo xtask exceptions`: Spalte 2 ist der Pfad (genau wie im Repo), Spalte 7 ein Datum `JJJJ-MM-TT`.
-Eine Datei mit zwei Ausnahmen bekommt zwei Zeilen.
+Format für `cargo xtask exceptions`: Spalte 2 ist der Pfad (genau wie im Repo), Spalte 3 die Regel, Spalte 6 das
+Eintragsdatum und Spalte 7 der Ablauf, beide `JJJJ-MM-TT`. Eine Datei mit zwei Ausnahmen bekommt zwei Zeilen.
+
+Verglichen werden **Datei und Regel**, nicht nur die Anzahl. Die Regel ist der Text vor einer Erläuterung in Klammern
+` (…)`; Groß-/Kleinschreibung, Leerzeichen und Backticks zählen nicht, mehrere Regeln eines Attributs stehen mit Komma
+in einer Zeile (Reihenfolge egal). Mögliche Regeln:
+- Rust: die Lints eines `allow`/`expect` (auch in `cfg_attr`, über mehrere Zeilen), z. B. `clippy::print_stdout,
+  clippy::print_stderr`; `ignore`; `unsafe`.
+- `deny.toml`: die Kennung `RUSTSEC-…` einer Meldung; `advisories.ignore=<crate>`;
+  `licenses.exceptions=<crate>:<Lizenz>+<Lizenz>`; jede Abweichung von der Grundliste im Werkzeug als
+  `<abschnitt>.<schlüssel>=<wert>`, z. B. `advisories.yanked=warn`, `sources.allow-git=<adresse>`,
+  `licenses.allow=<lizenz>`, `bans.skip=<crate>`, `bans.skip-tree=<crate>`, `bans.deny-fehlt=<crate>`.
+- `clippy.toml`: `<schlüssel>=<wert>` außerhalb der Grundliste, `disallowed-methods-fehlt=<pfad>`.
+- `.cargo/config.toml`: `build.rustflags` u. ä., `alias.<name>`; `.cargo/audit.toml`: alles außer `ignore`;
+  `Cargo.toml`: zusätzliche `workspace.lints.<werkzeug>.<lint>=allow`.
+
+Ohne Ausnahme-Weg rot: ein Crate-Manifest ohne `[lints] workspace = true` oder mit eigenen Lint-Stufen, Workspace-Lints
+schwächer als die Grundliste, eine zweite `clippy.toml`. Der Ablauf liegt höchstens 12 Monate nach dem Eintragsdatum,
+das Eintragsdatum nicht in der Zukunft.
