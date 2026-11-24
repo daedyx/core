@@ -73,3 +73,14 @@ fn valid_rule_accepts_only_sensible_values() {
         assert!(!valid_rule(&rule(RepeatKind::Monthly, 1, &[], Some(md))), "{md}");
     }
 }
+
+#[test]
+fn a_whole_skipped_day_moves_to_the_next_valid_hour_instead_of_1970() {
+    // Samoa ließ den 30.12.2011 ganz aus: auch eine Stunde später liegt noch in der Lücke.
+    let apia = chrono_tz::Pacific::Apia;
+    let local = NaiveDate::from_ymd_opt(2011, 12, 30).and_then(|d| d.and_hms_opt(9, 0, 0)).unwrap();
+    let next_day = NaiveDate::from_ymd_opt(2011, 12, 31).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap();
+    let want = apia.from_local_datetime(&next_day).single().map(|t| t.timestamp());
+    assert!(want.is_some_and(|t| t > 0));
+    assert_eq!(local_to_utc(apia, local), want);
+}

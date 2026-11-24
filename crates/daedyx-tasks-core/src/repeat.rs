@@ -80,11 +80,12 @@ fn local_to_utc(tz: Tz, local: NaiveDateTime) -> Option<i64> {
     match tz.from_local_datetime(&local) {
         LocalResult::Single(t) => Some(t.timestamp()),
         LocalResult::Ambiguous(first, _) => Some(first.timestamp()),
-        // Lücke der Umstellung: eine Stunde später nehmen
-        LocalResult::None => {
-            let later = local.checked_add_signed(Duration::try_hours(1)?)?;
-            Some(tz.from_local_datetime(&later).earliest().map_or(0, |t| t.timestamp()))
-        }
+        // Lücke der Umstellung: die erste gültige volle Stunde danach (meist eine Stunde später; Samoa ließ 2011 einen
+        // ganzen Tag aus). Höchstens 48 Stunden, sonst `None` statt eines erfundenen Zeitpunkts (früher: 1970).
+        LocalResult::None => (1..=48).find_map(|h| {
+            let later = local.checked_add_signed(Duration::try_hours(h)?)?;
+            tz.from_local_datetime(&later).earliest().map(|t| t.timestamp())
+        }),
     }
 }
 
