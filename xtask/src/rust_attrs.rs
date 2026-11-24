@@ -83,9 +83,8 @@ pub fn sites(src: &str) -> Vec<String> {
             Tok::Punct('#') => {
                 let bang = usize::from(t.get(i.saturating_add(1)) == Some(&Tok::Punct('!')));
                 let open = i.saturating_add(1).saturating_add(bang);
-                if t.get(open) == Some(&Tok::Punct('['))
-                    && let Some(inner) = group(&t, open)
-                {
+                let inner = if t.get(open) == Some(&Tok::Punct('[')) { group(&t, open) } else { None };
+                if let Some(inner) = inner {
                     meta(inner, &mut out);
                 }
             }

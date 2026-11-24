@@ -102,9 +102,8 @@ pub fn tokens(src: &str) -> Vec<Tok> {
             let len = c.get(i..).unwrap_or_default().iter().take_while(|x| x.is_alphanumeric() || **x == '_').count();
             let word: String = c.get(i..i.saturating_add(len)).unwrap_or_default().iter().collect();
             i = i.saturating_add(len);
-            if matches!(word.as_str(), "r" | "br" | "cr")
-                && let Some(end) = raw_string_end(&c, i)
-            {
+            let raw = if matches!(word.as_str(), "r" | "br" | "cr") { raw_string_end(&c, i) } else { None };
+            if let Some(end) = raw {
                 i = end;
                 out.push(Tok::Lit);
             } else {
