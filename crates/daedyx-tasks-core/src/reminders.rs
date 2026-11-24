@@ -1,6 +1,8 @@
 //! Erinnerungen zur Fälligkeit. Der Kern rechnet aus, was fällig ist, und meldet es als Ereignis
 //! `tasks://reminder`; die Benachrichtigung zeigt die Oberfläche (Texte in `de.json`).
 //! Ohne Uhrzeit gilt 9:00 Ortszeit des Fälligkeitstages als Bezugspunkt.
+use super::due_time::{due_secs, in_range};
+use super::edit_alarms::MAX_MINUTES;
 use super::errors::TaskError;
 use super::smart::due_day;
 use super::store::{task_from_row, TASK_COLS};
@@ -23,13 +25,25 @@ pub struct DueReminder {
     pub due_has_time: bool,
 }
 
+/// Bezugszeit der Erinnerungen, nur im erlaubten Bereich 1970 bis 9999 (sonst `None`, die Aufgabe wird übersprungen).
 fn base_secs(t: &Task, tz: chrono_tz::Tz) -> Option<i64> {
     if t.due_has_time {
-        return t.due.as_deref()?.parse().ok();
+        return due_secs(t.due.as_deref()?);
     }
     let day = due_day(t, tz)?;
     let local = day.and_hms_opt(9, 0, 0)?;
-    tz.from_local_datetime(&local).earliest().map(|d| d.timestamp())
+    tz.from_local_datetime(&local).earliest().map(|d| d.timestamp()).filter(|s| in_range(*s))
+}
+
+/// Minuten der eigenen Erinnerungszeilen (lesbare) und ob die Aufgabe überhaupt eigene Zeilen hat. Eine Zeile mit
+/// falschem Datentyp fällt weg, zählt aber als „hat eigene Zeilen“ (kein Rückfall auf das alte Einzelfeld).
+fn alarm_rows(conn: &Connection, task_id: &str) -> Result<(Vec<i64>, bool), TaskError> {
+    let mut st = conn.prepare(
+        "SELECT minutes_before FROM task_alarms WHERE task_id = ?1 AND deleted_at IS NULL ORDER BY minutes_before",
+    )?;
+    let rows: Vec<rusqlite::Result<i64>> = st.query_map([task_id], |r| r.get(0))?.collect();
+    let any = !rows.is_empty();
+    Ok((rows.into_iter().filter_map(Result::ok).collect(), any))
 }
 
 /// Offene Aufgaben mit Erinnerung, deren Zeitpunkt in `[from, to)` liegt und die noch nicht gemeldet wurden.
@@ -41,18 +55,23 @@ pub fn pending(conn: &Connection, from: i64, to: i64, tz_name: &str) -> Result<V
          AND (remind_minutes IS NOT NULL OR EXISTS (SELECT 1 FROM task_alarms a WHERE a.task_id = tasks.id AND a.deleted_at IS NULL)) \
          AND list_id IN (SELECT id FROM task_lists WHERE deleted_at IS NULL)"
     );
-    let tasks = conn.prepare(&sql)?.query_map([], task_from_row)?.collect::<Result<Vec<_>, _>>()?;
+    // Zeilen einzeln: eine Zeile mit falschem Datentyp darf die übrigen Erinnerungen nicht abschalten (Review N-7).
+    let tasks: Vec<Task> = conn.prepare(&sql)?.query_map([], task_from_row)?.filter_map(Result::ok).collect();
     let mut fired = conn.prepare("SELECT 1 FROM task_alarms_fired WHERE task_id = ?1 AND fire_at = ?2")?;
     let mut out = Vec::new();
     for t in tasks {
         let Some(base) = base_secs(&t, tz) else { continue };
         // Das Einzelfeld gilt nur, solange die Aufgabe keine eigenen Zeilen hat (ältere Daten, ältere Apps).
-        let mut mins = super::edit_alarms::alarms(conn, &t.id)?;
-        if mins.is_empty() {
+        let (mut mins, own) = alarm_rows(conn, &t.id)?;
+        if !own {
             mins.extend(t.remind_minutes);
         }
         for min in mins {
-            let fire_at = base.saturating_sub(min.saturating_mul(60));
+            // Minuten nur 0 bis ein Jahr wie bei der Eingabe; Unsinniges wird übersprungen statt gerechnet.
+            if !(0..=MAX_MINUTES).contains(&min) {
+                continue;
+            }
+            let Some(fire_at) = min.checked_mul(60).and_then(|s| base.checked_sub(s)) else { continue };
             if fire_at < from || fire_at >= to || fired.exists((&t.id, fire_at))? {
                 continue;
             }
@@ -162,3 +181,7 @@ mod tests {
         assert!(pending(&conn, 0, i64::MAX, "Europe/Berlin").unwrap().is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "reminders_abuse_tests.rs"]
+mod abuse_tests;

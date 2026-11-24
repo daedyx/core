@@ -147,7 +147,8 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
             meta::observe(&tx, stamp)?;
         }
         ensure_row(&tx, table, c, now)?;
-        let remote = Record { fields: c.fields.clone(), clocks: c.clocks.clone() };
+        let remote =
+            super::import_check::sanitized(table.name, Record { fields: c.fields.clone(), clocks: c.clocks.clone() });
         let local = read(&tx, table, &c.id)?.unwrap_or_default();
         let merged = merge(&local, &remote);
         let local_newer = merged != remote;
@@ -182,6 +183,9 @@ pub fn import_changes(conn: &Connection, changes: &[Change], now_ms: u64) -> Res
 #[cfg(test)]
 #[path = "outbox_alarms_tests.rs"]
 mod alarms_tests;
+#[cfg(test)]
+#[path = "outbox_check_tests.rs"]
+mod check_tests;
 #[cfg(test)]
 #[path = "outbox_sections_tests.rs"]
 mod sections_tests;

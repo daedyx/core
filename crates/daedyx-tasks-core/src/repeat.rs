@@ -1,5 +1,6 @@
 //! Nächste Fälligkeit einer wiederkehrenden Aufgabe. Reine Funktionen, keine Datenbank.
 //! Ortszeit bleibt über die Zeitumstellung stabil (Fälligkeit „9:00“ bleibt 9:00 Ortszeit).
+use super::due_time::{due_secs, in_range, local_at};
 use super::types::{RepeatKind, RepeatRule};
 use chrono::{Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Weekday};
 use chrono_tz::Tz;
@@ -92,15 +93,16 @@ fn local_to_utc(tz: Tz, local: NaiveDateTime) -> Option<i64> {
 /// Neue Fälligkeit nach dem Abhaken. `due`: Datum `YYYY-MM-DD` oder UTC-Sekunden (bei `due_has_time`).
 /// Ergebnis liegt immer nach `due` **und** nach dem Tag des Abhakens; bei `from_done` zählt vom Abhaken aus.
 pub fn advance(rule: &RepeatRule, due: &str, due_has_time: bool, done_at: i64, tz: Tz) -> Option<String> {
-    let done_day = tz.timestamp_opt(done_at, 0).single()?.date_naive();
+    // Nur 1970 bis 9999: am Kalenderende bräche die Umrechnung in Ortszeit in chrono ab (Review Tasks T0).
+    let done_day = local_at(tz, done_at)?.date();
     if due_has_time {
-        let local = tz.timestamp_opt(due.parse::<i64>().ok()?, 0).single()?.naive_local();
+        let local = local_at(tz, due_secs(due)?)?;
         let mut base = if rule.from_done { done_day.and_time(local.time()) } else { local };
         for _ in 0..MAX_STEPS {
             let day = next_date(rule, base.date())?;
             base = day.and_time(local.time());
             if day > done_day || rule.from_done {
-                return local_to_utc(tz, base).map(|t| t.to_string());
+                return local_to_utc(tz, base).filter(|t| in_range(*t)).map(|t| t.to_string());
             }
         }
         None

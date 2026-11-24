@@ -84,3 +84,32 @@ fn a_whole_skipped_day_moves_to_the_next_valid_hour_instead_of_1970() {
     assert!(want.is_some_and(|t| t > 0));
     assert_eq!(local_to_utc(apia, local), want);
 }
+
+#[test]
+fn due_and_done_near_the_end_of_the_calendar_end_without_panic() {
+    // Gerade noch darstellbare UTC-Sekunden: die Ortszeit (Berlin +1) läge schon hinter dem Kalenderende.
+    let edge = NaiveDateTime::MAX.and_utc().timestamp();
+    let first = NaiveDateTime::MIN.and_utc().timestamp();
+    let last_day = NaiveDate::MAX.format("%Y-%m-%d").to_string();
+    for kind in [RepeatKind::Daily, RepeatKind::Weekly, RepeatKind::Monthly, RepeatKind::Yearly] {
+        for from_done in [false, true] {
+            let r = RepeatRule { from_done, ..rule(kind.clone(), 1, &[], None) };
+            for secs in [edge, edge.saturating_sub(3600), first, first.saturating_add(3600), i64::MIN, i64::MAX] {
+                assert_eq!(advance(&r, &secs.to_string(), true, 0, Berlin), None, "{kind:?} {secs}");
+                assert_eq!(advance(&r, "2026-11-18", false, secs, Berlin), None, "{kind:?} erledigt {secs}");
+                assert_eq!(advance(&r, &secs.to_string(), true, secs, Berlin), None, "{kind:?} beides {secs}");
+            }
+            // Mit `from_done` zählt die Regel ab dem Abhaken (hier 1970), nicht ab dem letzten Tag.
+            if !from_done {
+                assert_eq!(advance(&r, &last_day, false, 0, Berlin), None, "{kind:?} letzter Tag");
+            }
+        }
+    }
+}
+
+#[test]
+fn ordinary_dates_still_advance() {
+    let r = rule(RepeatKind::Daily, 1, &[], None);
+    assert_eq!(advance(&r, "2026-11-18", false, 0, Berlin).as_deref(), Some("2026-11-19"));
+    assert_eq!(advance(&r, "1795096800", true, 0, Berlin).as_deref(), Some("1795183200"));
+}

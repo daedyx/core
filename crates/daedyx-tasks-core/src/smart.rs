@@ -2,7 +2,7 @@
 use super::errors::TaskError;
 use super::store::{task_from_row, tasks_in_list, TASK_COLS};
 use super::types::Task;
-use chrono::{NaiveDate, TimeZone};
+use chrono::NaiveDate;
 use chrono_tz::Tz;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ pub enum View {
 pub fn due_day(t: &Task, tz: Tz) -> Option<NaiveDate> {
     let due = t.due.as_deref()?;
     if t.due_has_time {
-        Some(tz.timestamp_opt(due.parse().ok()?, 0).single()?.date_naive())
+        Some(crate::due_time::local_at(tz, due.parse().ok()?)?.date())
     } else {
         NaiveDate::parse_from_str(due, "%Y-%m-%d").ok()
     }

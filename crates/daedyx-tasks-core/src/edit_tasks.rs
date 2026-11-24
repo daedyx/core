@@ -37,11 +37,8 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
         }
         "due" => match v {
             Value::Null => Ok(Value::Null),
-            Value::String(s)
-                if s.parse::<i64>().is_ok() || chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok() =>
-            {
-                Ok(v.clone())
-            }
+            // Mit Uhrzeit nur 1970 bis 9999 (Review Tasks T0 M-1), sonst ein Datum `YYYY-MM-DD`.
+            Value::String(s) if super::due_time::valid_due_text(s) => Ok(v.clone()),
             _ => bad("due"),
         },
         "remind_minutes" => match v {
@@ -256,3 +253,7 @@ pub fn delete_task(conn: &Connection, id: &str, now_ms: u64) -> Result<(), TaskE
 #[cfg(test)]
 #[path = "edit_tasks_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "edit_tasks_due_tests.rs"]
+mod due_tests;

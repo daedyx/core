@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 pub const MAX_ALARMS: usize = 10;
-const MAX_MINUTES: i64 = 525_600;
+pub(crate) const MAX_MINUTES: i64 = 525_600;
 
 /// Minuten vor der Fälligkeit, aufsteigend (die kleinste zuerst).
 pub fn alarms(conn: &Connection, task_id: &str) -> Result<Vec<i64>, TaskError> {
