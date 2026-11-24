@@ -16,6 +16,23 @@ fn add_months(d: NaiveDate, months: u32, anchor: Option<u8>) -> Option<NaiveDate
     (1..=first).rev().find_map(|day| NaiveDate::from_ymd_opt(y, m, day))
 }
 
+/// Größtes erlaubtes Intervall (alle 999 Tage, Wochen, Monate oder Jahre).
+pub const MAX_INTERVAL: u32 = 999;
+/// Eine Woche hat sieben Tage; längere Listen sind kaputt oder feindlich.
+pub const MAX_WEEKDAYS: usize = 7;
+/// Höchstens so viele Schritte sucht `advance` nach einem Termin nach dem Abhaken.
+pub const MAX_STEPS: u32 = 2000;
+
+/// Gültige Regel: Intervall 1 bis `MAX_INTERVAL`, Wochentage 1 (Montag) bis 7 (Sonntag) und höchstens sieben,
+/// Monatstag 1 bis 31. Die Eingabeprüfung (`edit_tasks`) nimmt genau diese Regeln an; Desk prüft vor dem Abhaken
+/// noch einmal, weil Regeln auch über den Abgleich ungeprüft ankommen.
+pub fn valid_rule(rule: &RepeatRule) -> bool {
+    (1..=MAX_INTERVAL).contains(&rule.interval)
+        && rule.weekdays.len() <= MAX_WEEKDAYS
+        && rule.weekdays.iter().all(|w| (1..=7).contains(w))
+        && rule.month_day.is_none_or(|d| (1..=31).contains(&d))
+}
+
 fn weekday_no(w: Weekday) -> u32 {
     w.number_from_monday()
 }
@@ -32,8 +49,14 @@ fn first_listed_day(weekdays: &[u8], from: NaiveDate, count: i64) -> Option<Naiv
 }
 
 /// Nächster Termin nach `base` (immer später als `base`). `None` bei unmöglichen Regeln
-/// (z. B. Wochentag außerhalb 1–7) oder wenn das Ergebnis außerhalb des Kalenders läge.
+/// (z. B. Wochentag außerhalb 1–7, mehr als sieben Wochentage) oder wenn das Ergebnis außerhalb des Kalenders läge.
+///
+/// Endet immer, ohne Panik: keine offene Schleife, nur die Wochensuche (höchstens 6 + 7 Tage, je Tag höchstens
+/// `MAX_WEEKDAYS` Vergleiche) und die Monatssuche (höchstens 31 Tage); alles Rechnen ist geprüft (`checked_*`).
 pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> Option<NaiveDate> {
+    if rule.weekdays.len() > MAX_WEEKDAYS {
+        return None;
+    }
     let n = i64::from(rule.interval.max(1));
     match rule.kind {
         RepeatKind::Daily => plus_days(base, n),
@@ -72,7 +95,7 @@ pub fn advance(rule: &RepeatRule, due: &str, due_has_time: bool, done_at: i64, t
     if due_has_time {
         let local = tz.timestamp_opt(due.parse::<i64>().ok()?, 0).single()?.naive_local();
         let mut base = if rule.from_done { done_day.and_time(local.time()) } else { local };
-        for _ in 0..2000 {
+        for _ in 0..MAX_STEPS {
             let day = next_date(rule, base.date())?;
             base = day.and_time(local.time());
             if day > done_day || rule.from_done {
@@ -82,7 +105,7 @@ pub fn advance(rule: &RepeatRule, due: &str, due_has_time: bool, done_at: i64, t
         None
     } else {
         let mut base = if rule.from_done { done_day } else { NaiveDate::parse_from_str(due, "%Y-%m-%d").ok()? };
-        for _ in 0..2000 {
+        for _ in 0..MAX_STEPS {
             base = next_date(rule, base)?;
             if base > done_day || rule.from_done {
                 return Some(base.format("%Y-%m-%d").to_string());

@@ -47,3 +47,29 @@ fn the_ends_of_time_do_not_panic() {
     assert!(local_to_utc(Berlin, NaiveDateTime::MAX).is_some_and(|t| t > 0));
     assert!(local_to_utc(Berlin, NaiveDateTime::MIN).is_some_and(|t| t < 0));
 }
+
+#[test]
+fn huge_weekday_lists_are_refused_without_work() {
+    // Über den Abgleich kann eine Regel mit beliebig langer Liste kommen; jeder Schritt wäre dann teuer.
+    let many = vec![1u8; 1_000_000];
+    assert_eq!(next_date(&rule(RepeatKind::Weekly, 1, &many, None), d("2026-11-18")), None);
+    assert!(!valid_rule(&rule(RepeatKind::Weekly, 1, &[1, 2, 3, 4, 5, 6, 7, 1], None)));
+}
+
+#[test]
+fn valid_rule_accepts_only_sensible_values() {
+    assert!(valid_rule(&rule(RepeatKind::Weekly, 1, &[1, 7], None)));
+    assert!(valid_rule(&rule(RepeatKind::Daily, MAX_INTERVAL, &[], None)));
+    assert!(valid_rule(&rule(RepeatKind::Monthly, 1, &[], Some(31))));
+    assert!(valid_rule(&rule(RepeatKind::Yearly, 2, &[], Some(1))));
+    for wd in [0u8, 8, 9, 255] {
+        assert!(!valid_rule(&rule(RepeatKind::Weekly, 1, &[wd], None)), "{wd}");
+        assert!(!valid_rule(&rule(RepeatKind::Weekly, 1, &[1, wd], None)), "gemischt {wd}");
+    }
+    for n in [0, MAX_INTERVAL.saturating_add(1), u32::MAX] {
+        assert!(!valid_rule(&rule(RepeatKind::Daily, n, &[], None)), "{n}");
+    }
+    for md in [0u8, 32, 255] {
+        assert!(!valid_rule(&rule(RepeatKind::Monthly, 1, &[], Some(md))), "{md}");
+    }
+}

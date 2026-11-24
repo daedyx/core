@@ -211,3 +211,28 @@ fn the_month_day_anchor_is_accepted_between_1_and_31_only() {
         assert!(r.is_err(), "{bad}");
     }
 }
+
+#[test]
+fn hostile_repeat_rules_are_refused_on_create_and_update() {
+    let (conn, l) = setup();
+    let t = create_task(&conn, &l, None, &fields(json!({"title": "x"})), 1000).unwrap();
+    let bad_rules = [
+        json!({"kind": "weekly", "interval": 1, "weekdays": [9]}),
+        json!({"kind": "weekly", "interval": 1, "weekdays": [0]}),
+        json!({"kind": "weekly", "interval": 1, "weekdays": [1, 8]}),
+        json!({"kind": "weekly", "interval": 1, "weekdays": [1, 2, 3, 4, 5, 6, 7, 1]}),
+        json!({"kind": "daily", "interval": 0}),
+        json!({"kind": "daily", "interval": 1000}),
+        json!({"kind": "yearly", "interval": 4294967295u32}),
+        json!({"kind": "monthly", "interval": 1, "monthDay": 0}),
+        json!({"kind": "monthly", "interval": 1, "monthDay": 32}),
+    ];
+    for rule in bad_rules {
+        let create = create_task(&conn, &l, None, &fields(json!({"title": "x", "repeat_rule": rule.clone()})), 1000);
+        assert!(matches!(create, Err(TaskError::Invalid("repeat_rule"))), "{rule}");
+        let update = update_task(&conn, &t.id, &fields(json!({"repeat_rule": rule.clone()})), 2000);
+        assert!(matches!(update, Err(TaskError::Invalid("repeat_rule"))), "{rule}");
+    }
+    let good = json!({"kind": "weekly", "interval": 999, "weekdays": [1, 7]});
+    assert!(update_task(&conn, &t.id, &fields(json!({"repeat_rule": good})), 3000).is_ok());
+}

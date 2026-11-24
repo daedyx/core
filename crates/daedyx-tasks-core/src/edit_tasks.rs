@@ -53,7 +53,7 @@ fn check(field: &str, v: &Value) -> Result<Value, TaskError> {
             Value::Null => Ok(Value::Null),
             Value::Object(_)
                 if serde_json::from_value::<super::types::RepeatRule>(v.clone())
-                    .is_ok_and(|r| r.interval >= 1 && r.month_day.is_none_or(|d| (1..=31).contains(&d))) =>
+                    .is_ok_and(|r| super::repeat::valid_rule(&r)) =>
             {
                 Ok(v.clone())
             }

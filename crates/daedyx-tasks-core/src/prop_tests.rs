@@ -4,7 +4,7 @@
 use crate::edit_lists::create_list;
 use crate::edit_tasks::{create_task, update_task};
 use crate::hlc::Hlc;
-use crate::repeat::{advance, next_date};
+use crate::repeat::{advance, next_date, valid_rule, MAX_INTERVAL};
 use crate::types::{RepeatKind, RepeatRule};
 use crate::validate::{check_color, check_links};
 use chrono::{Datelike, Duration, NaiveDate};
@@ -133,5 +133,44 @@ proptest! {
         let fields: Map<String, Value> = patch.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
         let _ = update_task(&conn, &task.id, &fields, 3000);
         let _ = create_task(&conn, &list.id, None, &fields, 4000);
+    }
+}
+
+fn valid_rule_strategy() -> impl Strategy<Value = RepeatRule> {
+    let days = prop::collection::btree_set(1u8..=7, 0..=7).prop_map(|s| s.into_iter().collect::<Vec<u8>>());
+    (kind(), 1u32..=MAX_INTERVAL, days, any::<bool>(), prop::option::of(1u8..=31)).prop_map(
+        |(kind, interval, weekdays, from_done, month_day)| RepeatRule {
+            kind,
+            interval,
+            weekdays,
+            from_done,
+            month_day,
+        },
+    )
+}
+
+proptest! {
+    /// Gültige Regeln finden immer einen nächsten Termin, und zwar in einem begrenzten Abstand.
+    #[test]
+    fn valid_rules_always_find_a_bounded_next_date(rule in valid_rule_strategy(), offset in 0i64..120_000) {
+        let start = NaiveDate::from_ymd_opt(1900, 1, 1).unwrap_or(NaiveDate::MIN);
+        let base = start.checked_add_signed(Duration::days(offset)).unwrap_or(start);
+        prop_assert!(valid_rule(&rule));
+        let next = next_date(&rule, base);
+        prop_assert!(next.is_some(), "{rule:?} {base}");
+        let gap = next.map_or(0, |n| n.signed_duration_since(base).num_days());
+        prop_assert!(gap > 0 && gap <= i64::from(rule.interval).saturating_mul(366).saturating_add(31), "{gap}");
+    }
+
+    /// Die Eingabeprüfung nimmt genau die Regeln an, die `valid_rule` gültig nennt (eine Wahrheit, zwei Stellen).
+    #[test]
+    fn edit_check_accepts_exactly_the_valid_rules(rule in any_rule()) {
+        let conn = crate::test_db::fresh();
+        let list = create_list(&conn, "L", "", 1000).map_err(|e| TestCaseError::fail(e.to_string()))?;
+        let value = serde_json::to_value(&rule).map_err(|e| TestCaseError::fail(e.to_string()))?;
+        let mut fields = Map::new();
+        fields.insert("title".into(), json!("x"));
+        fields.insert("repeat_rule".into(), value);
+        prop_assert_eq!(create_task(&conn, &list.id, None, &fields, 1000).is_ok(), valid_rule(&rule), "{:?}", rule);
     }
 }
