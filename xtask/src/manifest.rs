@@ -1,8 +1,9 @@
 //! Lint-Einstellungen außerhalb des Quelltexts (SICHERHEIT Anhang A, B; Review M-2):
 //! - jedes Crate-Manifest nimmt genau die Workspace-Lints (`[lints] workspace = true`), ohne eigene Lockerung;
 //! - die Workspace-Lints behalten die Grundliste mindestens so streng; weitere `allow` sind Ausnahme-Stellen;
-//! - `clippy.toml`: Schlüssel außerhalb der Grundliste und fehlende Sperren sind Ausnahme-Stellen;
-//! - `.cargo/config.toml`: Compiler-Schalter und Befehls-Aliase außer `xtask` sind Ausnahme-Stellen.
+//! - `clippy.toml`: Schlüssel außerhalb der Grundliste und fehlende Sperren sind Ausnahme-Stellen.
+//!
+//! `.cargo/config.toml` und Toolchain-Dateien prüft `cargo_config`.
 use crate::toml_lite::{compact, elements, field, items, unquote};
 
 const FORBID: u8 = 3;
@@ -43,7 +44,6 @@ const CLIPPY_KEYS: [&str; 5] = [
 ];
 const CLIPPY_DISALLOWED: [&str; 3] =
     ["std::process::Command::new", "std::env::temp_dir", "std::net::TcpStream::connect"];
-const XTASK_ALIAS: &str = "run --quiet --package xtask --";
 
 /// Stufe aus `"deny"` oder `{ level = "deny", priority = -1 }`; unbekannt = 0 (wie `allow`).
 fn level(value: &str) -> u8 {
@@ -121,19 +121,6 @@ pub fn clippy_sites(text: &str) -> Vec<String> {
             .map(|p| format!("disallowed-methods-fehlt={p}")),
     );
     out
-}
-
-/// Ausnahme-Stellen in `.cargo/config.toml`.
-pub fn config_sites(text: &str) -> Vec<String> {
-    items(text)
-        .into_iter()
-        .filter_map(|i| {
-            let key = i.key.to_ascii_lowercase();
-            let flags = key.ends_with("rustflags") || key.ends_with("rustdocflags");
-            let alias = key.starts_with("alias.") && !(key == "alias.xtask" && unquote(&i.value) == XTASK_ALIAS);
-            (flags || alias).then_some(key)
-        })
-        .collect()
 }
 
 #[cfg(test)]
