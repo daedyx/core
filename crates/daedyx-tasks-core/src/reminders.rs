@@ -1,6 +1,7 @@
 //! Erinnerungen zur Fälligkeit. Der Kern rechnet aus, was fällig ist, und meldet es als Ereignis
 //! `tasks://reminder`; die Benachrichtigung zeigt die Oberfläche (Texte in `de.json`).
-//! Ohne Uhrzeit gilt 9:00 Ortszeit des Fälligkeitstages als Bezugspunkt.
+//! Ohne Uhrzeit gilt 9:00 Ortszeit des Fälligkeitstages als Bezugspunkt (in einer Zeitlücke die erste gültige Zeit
+//! danach, `repeat::local_to_utc`).
 use super::due_time::{due_secs, in_range};
 use super::edit_alarms::MAX_MINUTES;
 use super::errors::TaskError;
@@ -8,7 +9,6 @@ use super::smart::due_day;
 use super::store::{task_from_row, TASK_COLS};
 use super::types::Task;
 use crate::zone::zone;
-use chrono::TimeZone;
 use rusqlite::Connection;
 use serde::Serialize;
 
@@ -32,7 +32,8 @@ fn base_secs(t: &Task, tz: chrono_tz::Tz) -> Option<i64> {
     }
     let day = due_day(t, tz)?;
     let local = day.and_hms_opt(9, 0, 0)?;
-    tz.from_local_datetime(&local).earliest().map(|d| d.timestamp()).filter(|s| in_range(*s))
+    // Eine Regel für Zeitlücken wie Detail, Schnelleingabe und Kalender (Review T1a R-3): nie still `None`.
+    crate::repeat::local_to_utc(tz, local).filter(|s| in_range(*s))
 }
 
 /// Minuten der eigenen Erinnerungszeilen (lesbare) und ob die Aufgabe überhaupt eigene Zeilen hat. Eine Zeile mit
@@ -185,3 +186,7 @@ mod tests {
 #[cfg(test)]
 #[path = "reminders_abuse_tests.rs"]
 mod abuse_tests;
+
+#[cfg(test)]
+#[path = "reminders_gap_tests.rs"]
+mod gap_tests;
