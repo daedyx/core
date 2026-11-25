@@ -3,7 +3,7 @@
 use chrono::{Datelike, Days, NaiveDate, NaiveTime};
 use serde_json::{json, Value};
 
-pub(crate) struct When {
+pub struct When {
     pub date: Option<NaiveDate>,
     pub time: Option<NaiveTime>,
     pub repeat: Option<Value>,
@@ -202,4 +202,9 @@ pub(crate) fn parse(words: &[String], today: NaiveDate) -> Result<When, ()> {
         .map(|(_, s)| s.clone())
         .collect();
     Ok(When { date, time, repeat, rest })
+}
+
+/// Wie die Zerlegung der Schnelleingabe, für andere Eingaben (Desk: Termine). `None` = eine Angabe ist unmöglich.
+pub fn parse_words(words: &[String], today: NaiveDate) -> Option<When> {
+    parse(words, today).ok()
 }

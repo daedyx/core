@@ -134,3 +134,15 @@ fn fuellwoerter_im_titel_bleiben_stehen() {
     assert_eq!(q("Abgabe bis morgen").unwrap().title, "Abgabe");
     assert_eq!(q("Wartung von 3.12.").unwrap().title, "Wartung");
 }
+
+#[test]
+fn die_zerlegung_steht_auch_anderen_eingaben_offen() {
+    use crate::quick_when::parse_words;
+    let words = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+    let today = now().date();
+    let w = parse_words(&words("Zahnarzt morgen 15 Uhr"), today).unwrap();
+    assert_eq!(w.date, today.succ_opt());
+    assert_eq!(w.time, chrono::NaiveTime::from_hms_opt(15, 0, 0));
+    assert_eq!(w.rest, vec!["Zahnarzt".to_string()]);
+    assert!(parse_words(&words("Feier 31.2."), today).is_none(), "unmögliches Datum");
+}
