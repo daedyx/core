@@ -62,6 +62,16 @@ mod tests {
     }
 
     #[test]
+    fn local_time_becomes_utc_and_the_gap_takes_the_hour_after() {
+        let at = |y, m, d, h, mi| NaiveDate::from_ymd_opt(y, m, d).unwrap().and_hms_opt(h, mi, 0).unwrap();
+        assert_eq!(crate::repeat::local_to_utc(Berlin, at(2026, 11, 18, 15, 0)), Some(1_795_010_400));
+        // 29.03.2026 02:30 gibt es in Berlin nicht: es gilt 03:30 Sommerzeit (01:30 UTC).
+        assert_eq!(crate::repeat::local_to_utc(Berlin, at(2026, 3, 29, 2, 30)), Some(1_774_747_800));
+        // 25.10.2026 02:30 gibt es zweimal: es gilt das erste Mal (Sommerzeit, 00:30 UTC).
+        assert_eq!(crate::repeat::local_to_utc(Berlin, at(2026, 10, 25, 2, 30)), Some(1_792_888_200));
+    }
+
+    #[test]
     fn the_edges_convert_even_in_the_furthest_zone() {
         assert!(local_at(Kiritimati, MAX_DUE_SECS).is_some());
         assert!(local_at(chrono_tz::Etc::GMTPlus12, 0).is_some());

@@ -77,7 +77,9 @@ pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> Option<NaiveDate> {
     }
 }
 
-fn local_to_utc(tz: Tz, local: NaiveDateTime) -> Option<i64> {
+/// Ortszeit zu UTC-Sekunden: bei doppelter Stunde das erste Mal, in der Lücke der Umstellung die erste gültige
+/// volle Stunde danach. Öffentlich für die Schnelleingabe und Oberflächen (Tasks T1a, vorher je eine Kopie in Desk).
+pub fn local_to_utc(tz: Tz, local: NaiveDateTime) -> Option<i64> {
     match tz.from_local_datetime(&local) {
         LocalResult::Single(t) => Some(t.timestamp()),
         LocalResult::Ambiguous(first, _) => Some(first.timestamp()),

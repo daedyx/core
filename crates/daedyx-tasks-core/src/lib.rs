@@ -16,6 +16,10 @@ pub mod migrate;
 pub mod outbox;
 #[cfg(test)]
 mod prop_tests;
+pub mod quick;
+#[cfg(test)]
+mod quick_tests;
+mod quick_when;
 pub mod reminders;
 pub mod repeat;
 pub mod schema;
