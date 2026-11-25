@@ -32,7 +32,7 @@ pub fn valid_due_text(text: &str) -> bool {
     }
 }
 
-/// Ortszeit zu UTC-Sekunden, `None` außerhalb des erlaubten Bereichs (statt Abbruch am Kalenderende).
+/// UTC-Sekunden zu Ortszeit, `None` außerhalb des erlaubten Bereichs (statt Abbruch am Kalenderende).
 pub fn local_at(tz: Tz, secs: i64) -> Option<NaiveDateTime> {
     if !in_range(secs) {
         return None;

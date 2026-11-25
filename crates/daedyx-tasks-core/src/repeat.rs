@@ -77,8 +77,10 @@ pub fn next_date(rule: &RepeatRule, base: NaiveDate) -> Option<NaiveDate> {
     }
 }
 
-/// Ortszeit zu UTC-Sekunden: bei doppelter Stunde das erste Mal, in der Lücke der Umstellung die erste gültige
-/// volle Stunde danach. Öffentlich für die Schnelleingabe und Oberflächen (Tasks T1a, vorher je eine Kopie in Desk).
+/// Ortszeit zu UTC-Sekunden: bei doppelter Stunde das erste Mal. In der Lücke der Umstellung wird stundenweise
+/// vorgerückt (höchstens 48 Stunden), die Minuten bleiben: Berlin 29.03.2026 02:30 → 03:30, Apia 30.12.2011
+/// 23:59 → 31.12. 00:59, Apia 30.12.2011 10:00 (der ganze Tag fehlt) → 31.12. 00:00. Eine Regel für alle
+/// Daedyx-Oberflächen (Aufgaben-Detail, Schnelleingabe, Desk-Kalender; Tasks T1a, Review N-1).
 pub fn local_to_utc(tz: Tz, local: NaiveDateTime) -> Option<i64> {
     match tz.from_local_datetime(&local) {
         LocalResult::Single(t) => Some(t.timestamp()),
