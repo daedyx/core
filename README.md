@@ -4,6 +4,8 @@ Gemeinsamer Rust-Kern der Daedyx-Suite (Cargo-Workspace).
 
 - `crates/daedyx-tasks-core` — Aufgaben: Modell, Schema und Migration, Feldstempel (HLC), Abgleich (Outbox, Merge), Bearbeiten, Wiederholung, Smart-Listen, Erinnerungen (nur „was ist fällig“). Kein Tauri, öffnet keine Datenbank: alles nimmt `&rusqlite::Connection`. SQLCipher oder SQLite stellt die App ein.
 
+- `crates/daedyx-update` — Update-Prüfung für Tasks, Desk und Launcher (Auftrag U1): `entry.json` streng lesen, GitHub-Nachweis (Sigstore, `attestation-verify`, eingebettete Wurzel `src/trusted_root.json`) gegen eine feste Identität prüfen (Besitzer, Repo, numerische IDs, `.github/workflows/release.yml`, `refs/heads/main`), Versionen nur aufwärts (höchste gesehene Version), Abruf-Regeln ohne eigenes Netz (`fetch::Transport` liefert die App: nur `https`, nur GitHub-Rechner, ≤ 3 Weiterleitungen, Größengrenzen), geprüfter Download (`.part`, SHA-256, nichts bleibt liegen), gemeinsame Sperre (`lock`), Zustand `updates.json` (`state`). Kein Schlüssel, kein Token. Netz (`net`) und Installation (`install`) kommen in U2. Prüfdaten: öffentliches Bündel von astral-sh/uv 0.13.9 unter `testdata/` (nur gelesen, nie ausgeführt).
+
 ## Schema-Stände (`task_meta.schema_version`)
 | Stand | Inhalt |
 |---|---|

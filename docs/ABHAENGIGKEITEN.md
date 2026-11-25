@@ -17,5 +17,32 @@ nachgesehen, nicht aus dem Gedächtnis übernommen.
 | rusqlite 0.37 `bundled` | Test | SQLite nur für Tests | MIT | `build.rs` | Bestand |
 | proptest 1.12 (ohne Standard-Merkmale, nur `std`) | Test | Eigenschafts- und Missbrauchstests (SICHERHEIT 2.4) | MIT OR Apache-2.0 | – | 2026-11-23: Version 1.12.0 vom 2026-10-10 (über 14 Tage), crates.io `proptest`, Repo proptest-rs/proptest |
 
+## daedyx-update
+| Crate | Art | Zweck | Lizenz | Bauskript/Makro | Geprüft |
+|---|---|---|---|---|---|
+| attestation-verify =0.1.0 (exakt) | normal | GitHub-Nachweise (Sigstore) offline prüfen | MIT OR Apache-2.0 | – (`forbid(unsafe_code)`) | Spike S-ATT 2026-11-23 (Fälschungsmatrix, deny/audit grün), Version vom 2026-08-03; **U-A1** |
+| serde 1, serde_json 1, thiserror 2 | normal | `entry.json`/`updates.json` lesen und schreiben, Fehlertypen | MIT OR Apache-2.0 | derive-Makros | wie daedyx-tasks-core |
+| semver 1.0.28 | normal | Versionen vergleichen | MIT OR Apache-2.0 | – | Bestand aus `daedyx-launcher/daedyx-update` |
+| sha2 0.11 | normal | SHA-256 beim Laden | MIT OR Apache-2.0 | – | Bestand Launcher; dieselbe Fassung zieht attestation-verify |
+| hex 0.4 | normal | Prüfsummen als Text | MIT OR Apache-2.0 | – | Bestand Launcher |
+| proptest 1.12 (nur `std`) | Test | Eigenschafts- und Missbrauchstests | MIT OR Apache-2.0 | – | wie daedyx-tasks-core |
+| tempfile 3.27 | Test | Temporäre Ordner in Tests | MIT OR Apache-2.0 | – | Bestand Launcher |
+
+Mittelbar über attestation-verify (Lockfile, Fassungen wie im Spike): RustCrypto (`p256`/`p384` 0.14, `ecdsa` 0.17,
+`signature` 3.0, `der` 0.8, `spki` 0.8, `x509-cert` 0.3.1 u. a.), `base64` 0.23. Kein C-Code, kein Netz-Code.
+
+### Lieferketten-Ausnahmen ohne Code-Stelle (Prüfung von Hand)
+Diese Ausnahmen haben keine Stelle, die `cargo xtask exceptions` findet; sie stehen deshalb hier und nicht in der
+Tabelle von `docs/SICHERHEIT-AUSNAHMEN.md` (dort wäre eine Zeile ohne Stelle rot).
+
+- **U-A1** – Regel „Abhängigkeiten reif und gepflegt“ (SICHERHEIT 4.1). `attestation-verify` 0.1.0 hat einen Autor und
+  kein unabhängiges Audit. Ausgleich: exakte Version, Fälschungsmatrix als Dauertest (`attest_tests.rs`),
+  Prüfsumme und Größe aus `entry.json` als zweite Prüfung, Ersatz `sigstore-verify` vorbereitet (nur `attest.rs`
+  betroffen). `cargo vet` gibt es im Kern noch nicht (ungeprüft). Wiedervorlage alle 3 Monate oder bei
+  Ankündigung von Rekor v2. Eingetragen 2026-11-26, Ablauf 2027-02-26. **Ja des Betreuers ausstehend.**
+- **U-A2** – Regel „Version mindestens 14 Tage alt“ (SICHERHEIT 4.1). Der Plan sah `x509-cert` 0.3.0 vor; offline
+  liegt nur 0.3.1 (vom 2026-11-20) im Cache, also nimmt das Lockfile 0.3.1. Sie ist am 2026-12-04 14 Tage alt; bis
+  dahin gilt die Ausnahme. Eingetragen 2026-11-26, Ablauf 2026-12-04. **Ja des Betreuers ausstehend.**
+
 ## xtask
 Keine Abhängigkeiten (nur Standardbibliothek).
