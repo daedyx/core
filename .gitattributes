@@ -1,2 +1,5 @@
 # Git-Haken laufen in sh und brauchen LF-Zeilenenden, auch unter Windows.
 .githooks/* text eol=lf
+# Prüfdaten und Vertrauenswurzel von daedyx-update werden über ihre SHA-256 geprüft: Bytes nie umwandeln.
+crates/daedyx-update/testdata/** -text
+crates/daedyx-update/src/trusted_root.json -text
