@@ -1,0 +1,27 @@
+[package]
+name = "daedyx-update"
+description = "Daedyx Update-Prüfung: Eintrag, GitHub-Nachweis (Sigstore), Version, geprüfter Download, Sperre, Zustand (ohne Netz, ohne Oberfläche)"
+edition.workspace = true
+version.workspace = true
+license = "MIT"
+
+[dependencies]
+# Prüft GitHub-Nachweise offline (Spike S-ATT, Entscheid D5). Exakte Version: U-A1 in docs/ABHAENGIGKEITEN.md.
+attestation-verify = "=0.1.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+semver = "1.0.28"
+sha2 = "0.11"
+hex = "0.4"
+thiserror = "2"
+
+[dev-dependencies]
+proptest = { version = "1.12", default-features = false, features = ["std"] }
+tempfile = "3.27"
+
+[features]
+# Eingänge für Fuzz-Ziele (docs/FUZZING.md); ohne eigenen Code außer dünnen Aufrufen.
+fuzzing = []
+
+[lints]
+workspace = true
