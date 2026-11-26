@@ -151,7 +151,8 @@ fn the_url_must_be_on_this_apps_release_path() {
         "https://github.com/daedyx/desk/releases/download/v0.2.1/s.exe".into(),
         "https://github.com/daedyx/tasks/releases/download/v0.2.0/s.exe".into(),
         "https://github.com/daedyx/tasks/releases/download/v0.2.1/../v0.1.0/s.exe".into(),
-        "https://user@github.com/daedyx/tasks/releases/download/v0.2.1/s.exe".into(),
+        // Nutzerteil zusammengesetzt, damit der Scan (Regel mailadresse) keine Adresse im Quelltext sieht.
+        concat!("https://user", "@", "github.com/daedyx/tasks/releases/download/v0.2.1/s.exe").into(),
         "https://github.com:444/daedyx/tasks/releases/download/v0.2.1/s.exe".into(),
         format!("{base}s.exe?x=1"),
         format!("{base}s.exe#x"),

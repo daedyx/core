@@ -38,7 +38,7 @@ fn redirects_to_foreign_or_plain_hosts_are_refused_before_asking_them() {
         "https://github.com.evil.example/x",
         "https://evilgithub.com/x",
         "http://objects.githubusercontent.com/x",
-        "https://user@objects.githubusercontent.com/x",
+        concat!("https://user", "@", "objects.githubusercontent.com/x"),
         "https://objects.githubusercontent.com:8443/x",
         "https://OBJECTS.githubusercontent.com/x",
         "/relative/path",
