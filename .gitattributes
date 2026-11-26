@@ -1,3 +1,6 @@
+# Keine Zeilenende-Umwandlung im ganzen Repo (Review U1-R, F5): Bytes im Arbeitsordner = Bytes im Commit, auch mit
+# core.autocrlf=true unter Windows. Alle Dateien sind im Index LF.
+* -text
 # Git-Haken laufen in sh und brauchen LF-Zeilenenden, auch unter Windows.
 .githooks/* text eol=lf
 # Prüfdaten und Vertrauenswurzel von daedyx-update werden über ihre SHA-256 geprüft: Bytes nie umwandeln.
