@@ -130,9 +130,11 @@ impl UpdatePolicy {
         format!("/{}/{}/releases/download/v{version}/", self.owner, self.repo)
     }
 
-    /// Release-Seite für den Hinweis „bitte von Hand laden“ (feste Adresse, nie aus Fremddaten).
-    pub fn releases_page(&self) -> String {
-        format!("https://github.com/{}/{}/releases/latest", self.owner, self.repo)
+    /// Erwartete Quelle als Text für den Hinweis „bitte von Hand laden“. Bewusst kein Link: Eine Adresse nach Namen
+    /// kann nach Umbenennung und Neuanlage des Namens auf fremdes Gebiet zeigen; die IDs schützen nur den
+    /// automatischen Weg (Review M-U1-1).
+    pub fn expected_source(&self) -> String {
+        format!("github.com/{}/{}", self.owner, self.repo)
     }
 }
 

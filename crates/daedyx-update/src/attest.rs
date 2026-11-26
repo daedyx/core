@@ -5,8 +5,8 @@
 use crate::policy::{UpdatePolicy, GIT_REF, WORKFLOW};
 use attestation_verify::{
     Bundle, CertificateError, CheckpointOriginPolicy, Error, GithubPolicy, RefPolicy, RepositoryIdentity, SignerPolicy,
-    SourcePolicy, Subject, TimestampError, TransparencyError, TrustError, TrustStore, Verifier, WorkflowPath,
-    WorkflowRevisionPolicy,
+    SourcePolicy, Subject, TimestampError, TransparencyError, TrustError, TrustStore, UnsupportedError, Verifier,
+    WorkflowPath, WorkflowRevisionPolicy,
 };
 
 /// Höchstgröße eines Bündels (`provenance.sigstore.json`).
@@ -51,11 +51,14 @@ pub trait Provenance {
     fn verify(&self, sha256: &[u8; 32], bundle: &[u8]) -> Result<(), AttestError>;
 }
 
-/// Schlägt fehl, wenn eine neuere Wurzel oder ein neues Log-Format nötig wäre (Text „von Hand aktualisieren“).
+/// Nur Fälle, die ein echter Wechsel bei Sigstore auslösen kann (Rekor v2, neue Schlüssel oder Wurzel), ergeben
+/// „von Hand laden“. Formatfelder, die allein unser Workflow setzt (Medientyp, Aussage-, Prädikat- und DSSE-Typ,
+/// mehrere Log-Einträge), sind vor der Signatur fälschbar und ergeben „nicht sicher“ (Review M-U1-1). Auch die
+/// Fälle hier sind fälschbar; deshalb nennt der Hinweis nur die erwartete Quelle und keinen Link.
 fn needs_newer_verifier(e: &Error) -> bool {
     matches!(
         e,
-        Error::Unsupported(_)
+        Error::Unsupported(UnsupportedError::TlogEntryKindVersion { .. })
             | Error::Trust(TrustError::NoTrustedKeyValidAt)
             | Error::Certificate(CertificateError::OutsideCaValidity | CertificateError::UnknownCtLog)
             | Error::Transparency(TransparencyError::UnknownLogKey)

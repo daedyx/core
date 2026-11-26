@@ -3,6 +3,7 @@
 //! „unverändert = gültig“, jede Erwartung nennt den Grund, Bündel werden nur als Bytes gelesen.
 use super::*;
 use crate::policy::{Platform, UpdatePolicy};
+use crate::reason::{BlockKind, Blocked};
 use sha2::{Digest, Sha256};
 
 const BUNDLE: &[u8] = include_bytes!("../testdata/uv/uv-manifest.provenance.sigstore.json");
@@ -64,8 +65,11 @@ fn another_origin_is_refused_with_the_policy_reason() {
 fn a_foreign_bundle_or_githubs_release_attestation_is_refused() {
     let cli = include_bytes!("../testdata/foreign/cli-provenance.sigstore.json");
     assert_eq!(kind(uv().verify(&sha(MANIFEST), cli)), AttestKind::NotInBundle);
+    // GitHubs eigenes Release-Prädikat: ein fremdes Format, kein Zeichen einer neueren Prüfung (Review M-U1-1).
     let tsa = include_bytes!("../testdata/foreign/uv-release-att.sigstore.json");
-    assert_eq!(kind(uv().verify(&sha(MANIFEST), tsa)), AttestKind::Unsupported);
+    let e = uv().verify(&sha(MANIFEST), tsa).unwrap_err();
+    assert_eq!(e.kind, AttestKind::Invalid, "{e}");
+    assert!(e.detail.contains("predicate type"), "{e}");
 }
 
 macro_rules! tampered {
@@ -109,16 +113,40 @@ fn every_tampered_bundle_is_refused_for_the_right_reason() {
     }
 }
 
-#[test]
-fn an_old_media_type_is_unsupported() {
+fn replaced(from: &str, to: &str) -> String {
     let text = String::from_utf8(BUNDLE.to_vec()).unwrap();
-    let old = text.replacen(
-        "\"mediaType\":\"application/vnd.dev.sigstore.bundle.v0.3+json\"",
-        "\"mediaType\":\"application/vnd.dev.sigstore.bundle+json;version=0.1\"",
-        1,
-    );
-    assert_ne!(old, text, "Ersetzung muss greifen");
-    assert_eq!(kind(uv().verify(&sha(MANIFEST), old.as_bytes())), AttestKind::Unsupported);
+    let out = text.replacen(from, to, 1);
+    assert_ne!(out, text, "Ersetzung muss greifen");
+    out
+}
+
+/// Review M-U1-1: Felder, die nur unser eigener Workflow setzt und die vor der Signatur geprüft werden, darf jeder
+/// fälschen. Sie ergeben „nicht sicher“, nie „bitte von Hand laden“.
+#[test]
+fn forged_unsigned_format_fields_are_not_trusted() {
+    let mut two_logs: serde_json::Value = serde_json::from_slice(BUNDLE).unwrap();
+    let entries = two_logs["verificationMaterial"]["tlogEntries"].as_array_mut().unwrap();
+    entries.push(entries[0].clone());
+    let cases = [
+        (
+            replaced(
+                "\"mediaType\":\"application/vnd.dev.sigstore.bundle.v0.3+json\"",
+                "\"mediaType\":\"application/vnd.dev.sigstore.bundle+json;version=0.1\"",
+            ),
+            "media type",
+        ),
+        (
+            replaced("\"payloadType\":\"application/vnd.in-toto+json\"", "\"payloadType\":\"text/plain\""),
+            "payload type",
+        ),
+        (two_logs.to_string(), "tlog entries"),
+    ];
+    for (bundle, why) in cases {
+        let e = uv().verify(&sha(MANIFEST), bundle.as_bytes()).unwrap_err();
+        assert_eq!(e.kind, AttestKind::Invalid, "{e}");
+        assert!(e.detail.contains(why), "{e} sollte „{why}“ nennen");
+        assert_eq!(Blocked::from(e).kind, BlockKind::NotTrusted);
+    }
 }
 
 #[test]

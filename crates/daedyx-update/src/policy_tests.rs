@@ -5,7 +5,8 @@ fn a_valid_policy_builds_fixed_addresses() {
     let p = UpdatePolicy::new("daedyx", "tasks", 1001, 2002, "tasks", Platform::WindowsX64).unwrap();
     assert_eq!(p.latest_asset_url("entry.json"), "https://github.com/daedyx/tasks/releases/latest/download/entry.json");
     assert_eq!(p.release_path_prefix(&semver::Version::new(0, 2, 0)), "/daedyx/tasks/releases/download/v0.2.0/");
-    assert_eq!(p.releases_page(), "https://github.com/daedyx/tasks/releases/latest");
+    // Kein Link nach Namen für „von Hand laden“ (Review M-U1-1): nur die erwartete Quelle als Text.
+    assert_eq!(p.expected_source(), "github.com/daedyx/tasks");
     assert_eq!(p.to_string(), "daedyx/tasks (1001/2002) .github/workflows/release.yml@refs/heads/main");
 }
 

@@ -14,7 +14,8 @@ pub enum BlockKind {
     SourceUnavailable,
     /// Nachweis, Eintrag oder Datei passen nicht: „stammt nicht sicher von Daedyx“.
     NotTrusted,
-    /// Diese Version kann den Nachweis nicht prüfen: „bitte von Hand laden“ mit Link auf die Release-Seite.
+    /// Diese Version kann den Nachweis nicht prüfen. Der Text nennt die erwartete Quelle
+    /// (`UpdatePolicy::expected_source`), sagt nie „sicher“ und zeigt keinen Link (Review M-U1-1).
     NeedsManualUpdate,
     /// Die Quelle liefert eine ältere Version als schon gesehen: „bitte melden“.
     SourceWentBack,
