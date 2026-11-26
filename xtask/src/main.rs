@@ -1,6 +1,7 @@
 //! Eigene Prüfwerkzeuge des Repos (SICHERHEIT Anhang D), nur Standardbibliothek, kein Netz:
 //! - `cargo xtask scan` prüft alle versionierten Dateien, `--staged` nur die vorgemerkten (Pre-Commit-Haken).
-//! - `cargo xtask exceptions` vergleicht Ausnahmen im Code mit `docs/SICHERHEIT-AUSNAHMEN.md`.
+//! - `cargo xtask exceptions` vergleicht Ausnahmen im Code mit `docs/SICHERHEIT-AUSNAHMEN.md`; Zeilen
+//!   `lieferkette:<crate>` prüft es gegen `Cargo.lock`.
 //! - `cargo xtask testzahl <protokoll>` prüft die Mindestzahl der Tests je Testprogramm.
 //! - `--head` liest den Commit statt des Arbeitsordners (CI).
 mod cargo_config;
@@ -16,6 +17,7 @@ mod policy;
 mod rust_attrs;
 mod rust_tokens;
 mod scan;
+mod supply;
 mod testcount;
 mod toml_check;
 mod toml_lite;
@@ -48,7 +50,9 @@ fn run_exceptions(src: files::Source, ws: &str) -> Result<String, Vec<String>> {
     let read = |p: &str| scan::decode_text(&src.content(p).unwrap_or_default());
     let (sites, mut problems) = policy::collect(&paths, ws, read);
     let table = read(exceptions::TABLE);
-    problems.extend(exceptions::check(&sites, &exceptions::parse_table(&table), &date::today()));
+    let entries = exceptions::parse_table(&table);
+    problems.extend(exceptions::check(&sites, &entries, &date::today()));
+    problems.extend(supply::problems(&entries, &read(&format!("{ws}{}", supply::LOCKFILE))));
     problems.extend(exceptions::mirror_problems(
         &read(&format!("{ws}deny.toml")),
         &read(&format!("{ws}.cargo/audit.toml")),

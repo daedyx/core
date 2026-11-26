@@ -15,10 +15,12 @@ Stelle oder ein abgelaufener Eintrag sind rot.
 | A-005 | deny.toml | RUSTSEC-2026-0543 (chrono nicht gepflegt) | Keine bekannte Lücke, nur „nicht mehr gepflegt“. Ersatz (z. B. jiff) ist ein eigener Auftrag, weil Wiederholung und Erinnerungen daran hängen. | wie A-004 | 2026-11-23 | 2027-02-28 |
 | A-006 | deny.toml | RUSTSEC-2026-0555 (chrono-tz nicht gepflegt) | wie A-005 | wie A-004 | 2026-11-23 | 2027-02-28 |
 | A-007 | xtask/src/main.rs | clippy::print_stdout, clippy::print_stderr | Das Prüfwerkzeug meldet Ergebnisse auf der Konsole; das ist seine Aufgabe. Ausgegeben werden nur Datei, Zeile und Regel, nie der gefundene Text. Läuft nie in einer App. | Bau-Chat, Ja des Betreuers 2026-11-24 | 2026-11-23 | 2027-11-23 |
+| U-A1 | Cargo.lock | lieferkette:attestation-verify@0.1.0 (Reife) | Ein Autor, kein unabhängiges Audit (SICHERHEIT 4.1). Ausgleich: exakte Version, Fälschungsmatrix als Dauertest, Prüfsumme und Größe aus `entry.json` als zweite Prüfung, Ersatz `sigstore-verify` vorbereitet. Bekannte Lücke: Auslöser und Läufer des Workflows prüft die Bibliothek nicht (Review U1-R N-U1-1). Einzelheiten in `docs/ABHAENGIGKEITEN.md`. | Bau-Chat U1, Ja des Betreuers 2026-11-26 | 2026-11-26 | 2027-02-26 |
+| U-A2 | Cargo.lock | lieferkette:x509-cert@0.3.1 (jünger als 14 Tage) | Offline lag nur 0.3.1 (vom 2026-11-20) im Cache, der Plan sah 0.3.0 vor (SICHERHEIT 4.1). Ab 2026-12-04 ist sie 14 Tage alt; dann die Zeile löschen. | Bau-Chat U1, Ja des Betreuers 2026-11-26 | 2026-11-26 | 2026-12-04 |
 
-Lieferketten-Ausnahmen ohne Code-Stelle (z. B. Reife oder Alter einer Abhängigkeit) stehen in
-`docs/ABHAENGIGKEITEN.md` unter „Lieferketten-Ausnahmen ohne Code-Stelle“: derzeit **U-A1** (`attestation-verify`
-0.1.0) und **U-A2** (`x509-cert` 0.3.1 jünger als 14 Tage), beide mit **Ja des Betreuers ausstehend**.
+Eine Zeile mit Regel `lieferkette:<crate>` oder `lieferkette:<crate>@<fassung>` und Datei `Cargo.lock` ist eine
+Lieferketten-Ausnahme ohne Code-Stelle (z. B. Reife oder Alter einer Abhängigkeit). Sie ist rot, sobald das Paket bzw.
+genau diese Fassung nicht mehr im Lockfile steht, und wie jede Zeile, wenn sie abläuft.
 
 Eine Zeile mit Regel `scan:<regel>` (z. B. `scan:secret-im-workflow`) erlaubt genau diesen Fund des Scans in genau
 dieser Datei bis zum Ablaufdatum; sie zählt nicht als Code-Stelle. Gedacht nur für Altlasten, deren Ablösung beschlossen ist.

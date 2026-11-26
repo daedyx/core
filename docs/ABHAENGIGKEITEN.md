@@ -31,15 +31,20 @@ nachgesehen, nicht aus dem Gedächtnis übernommen.
 Mittelbar über attestation-verify (Lockfile, Fassungen wie im Spike): RustCrypto (`p256`/`p384` 0.14, `ecdsa` 0.17,
 `signature` 3.0, `der` 0.8, `spki` 0.8, `x509-cert` 0.3.1 u. a.), `base64` 0.23. Kein C-Code, kein Netz-Code.
 
-### Lieferketten-Ausnahmen ohne Code-Stelle (Prüfung von Hand)
-Diese Ausnahmen haben keine Stelle, die `cargo xtask exceptions` findet; sie stehen deshalb hier und nicht in der
-Tabelle von `docs/SICHERHEIT-AUSNAHMEN.md` (dort wäre eine Zeile ohne Stelle rot).
+### Lieferketten-Ausnahmen
+Beide stehen als Zeilen `lieferkette:` in `docs/SICHERHEIT-AUSNAHMEN.md`; `cargo xtask exceptions` prüft sie gegen
+`Cargo.lock` und das Ablaufdatum.
 
 - **U-A1** – Regel „Abhängigkeiten reif und gepflegt“ (SICHERHEIT 4.1). `attestation-verify` 0.1.0 hat einen Autor und
   kein unabhängiges Audit. Ausgleich: exakte Version, Fälschungsmatrix als Dauertest (`attest_tests.rs`),
   Prüfsumme und Größe aus `entry.json` als zweite Prüfung, Ersatz `sigstore-verify` vorbereitet (nur `attest.rs`
   betroffen). `cargo vet` gibt es im Kern noch nicht (ungeprüft). Wiedervorlage alle 3 Monate oder bei
   Ankündigung von Rekor v2. Eingetragen 2026-11-26, Ablauf 2027-02-26. **Ja des Betreuers 2026-11-26.**
+  **Bekannte Lücke (Review U1-R N-U1-1):** Die Bibliothek liest Auslöser (`build_trigger`) und Läufer
+  (`runner_environment`) des Workflows, prüft sie aber nicht. Gebunden ist also „`release.yml` lief auf
+  `refs/heads/main`“, nicht „nach Push oder Start von Hand auf einem GitHub-Läufer“. `release.yml` muss das selbst
+  sicherstellen (U2: nur `push` und `workflow_dispatch`, nur GitHub-Läufer, Freigabe im Environment, CI-Wache).
+  Bei der Wiedervorlage bei `attestation-verify` anfragen bzw. im Ersatz `sigstore-verify` selbst prüfen.
 - **U-A2** – Regel „Version mindestens 14 Tage alt“ (SICHERHEIT 4.1). Der Plan sah `x509-cert` 0.3.0 vor; offline
   liegt nur 0.3.1 (vom 2026-11-20) im Cache, also nimmt das Lockfile 0.3.1. Sie ist am 2026-12-04 14 Tage alt; bis
   dahin gilt die Ausnahme. Eingetragen 2026-11-26, Ablauf 2026-12-04. **Ja des Betreuers 2026-11-26.**

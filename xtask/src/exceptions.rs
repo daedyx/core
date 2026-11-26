@@ -133,7 +133,8 @@ pub fn check(sites: &[(String, String)], entries: &[Entry], today: &str) -> Vec<
     }
     let mut problems = Vec::new();
     for e in entries {
-        if !e.rule.starts_with("scan:") {
+        // `scan:`- und `lieferkette:`-Zeilen haben keine Code-Stelle; `supply` prüft letztere gegen das Lockfile.
+        if !e.rule.starts_with("scan:") && !normalize_rule(&e.rule).starts_with(crate::supply::PREFIX) {
             let n = balance.entry((e.path.clone(), normalize_rule(&e.rule))).or_insert(0);
             *n = n.saturating_sub(1);
         }
