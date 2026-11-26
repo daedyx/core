@@ -14,6 +14,9 @@ semver = "1.0.28"
 sha2 = "0.11"
 hex = "0.4"
 thiserror = "2"
+# Nur mit Merkmal `net` (U3 F-U3-1): HTTPS ohne eigene Weiterleitungen (die Regeln stehen in `fetch`), TLS über rustls
+# mit den eingebauten Wurzeln, ohne gzip. Fassung wie bisher in Launcher und daedyx-updater (U-A3).
+ureq = { version = "=3.5.2", default-features = false, features = ["rustls"], optional = true }
 
 [dev-dependencies]
 proptest = { version = "1.12", default-features = false, features = ["std"] }
@@ -22,6 +25,8 @@ tempfile = "3.27"
 [features]
 # Eingänge für Fuzz-Ziele (docs/FUZZING.md); ohne eigenen Code außer dünnen Aufrufen.
 fuzzing = []
+# Echtes Netz `net::UreqTransport` für Apps und Launcher (U3 F-U3-1).
+net = ["dep:ureq"]
 
 [lints]
 workspace = true

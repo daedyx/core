@@ -2,5 +2,5 @@
 # Format: <Zahl> <Testprogramm wie im Protokoll von cargo test>. Mehr Tests sind immer erlaubt; die Zahl zu senken
 # oder eine Zeile zu löschen ist eine Lockerung und braucht das Ja des Betreuers (wie eine Ausnahme).
 177 unittests src/lib.rs (daedyx_tasks_core)
-87 unittests src/lib.rs (daedyx_update)
+91 unittests src/lib.rs (daedyx_update)
 68 unittests src/main.rs (xtask)

@@ -27,6 +27,7 @@ nachgesehen, nicht aus dem Gedächtnis übernommen.
 | hex 0.4 | normal | Prüfsummen als Text | MIT OR Apache-2.0 | – | Bestand Launcher |
 | proptest 1.12 (nur `std`) | Test | Eigenschafts- und Missbrauchstests | MIT OR Apache-2.0 | – | wie daedyx-tasks-core |
 | tempfile 3.27 | Test | Temporäre Ordner in Tests | MIT OR Apache-2.0 | – | Bestand Launcher |
+| ureq =3.5.2 (ohne Standard-Merkmale, nur `rustls`), **nur mit Merkmal `net`** | normal, optional | Echtes Netz `net::UreqTransport` (U3 F-U3-1): eine Anfrage je Aufruf, keine eigenen Weiterleitungen, Zeitgrenzen 15 s/60 s, User-Agent `daedyx-update` | MIT OR Apache-2.0 | – | Fassung wie bisher in Launcher und `daedyx-updater` (dort je eine Abschrift von `net.rs`, jetzt gemeinsam). Bringt rustls 0.23.46, ring 0.17.14 und webpki-roots 1.0.12 (CDLA-Permissive-2.0) mit; Netz ohne `daedyx-net` ist **U-A3** (Plan §9), Ja des Betreuers ausstehend |
 
 Mittelbar über attestation-verify (Lockfile, Fassungen wie im Spike): RustCrypto (`p256`/`p384` 0.14, `ecdsa` 0.17,
 `signature` 3.0, `der` 0.8, `spki` 0.8, `x509-cert` 0.3.1 u. a.), `base64` 0.23. Kein C-Code, kein Netz-Code.
