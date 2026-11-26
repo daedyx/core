@@ -83,3 +83,21 @@ fn extreme_times_do_not_overflow() {
         let _ = s.due_for_auto_check(now);
     }
 }
+
+/// Review N-U1-3, Probe R6: Ein zweiter Schreiber mit älterem Stand senkt die höchste gesehene Version nicht.
+#[test]
+fn a_second_writer_never_lowers_the_highest_seen_version() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut base = UpdateState::default();
+    base.note_seen(&Version::new(1, 0, 0));
+    base.save(dir.path()).unwrap();
+    let mut app = UpdateState::load(dir.path()).unwrap();
+    let mut launcher = UpdateState::load(dir.path()).unwrap();
+    app.note_seen(&Version::new(1, 1, 0));
+    app.save(dir.path()).unwrap();
+    launcher.note_check(NOW);
+    launcher.save(dir.path()).unwrap();
+    let now = UpdateState::load(dir.path()).unwrap();
+    assert_eq!(now.highest_seen(), Some(Version::new(1, 1, 0)));
+    assert_eq!(now.last_check, Some(NOW));
+}

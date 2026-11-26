@@ -68,12 +68,20 @@ impl UpdateState {
         UpdateState::load(dir).unwrap_or_default()
     }
 
-    /// Schreibt den Zustand (erst Nebendatei, dann umbenennen, damit nie eine halbe Datei bleibt).
+    /// Schreibt den Zustand (erst Nebendatei, dann umbenennen, damit nie eine halbe Datei bleibt). Die höchste
+    /// gesehene Version wird mit dem Stand auf der Platte zusammengeführt, damit ein zweiter Schreiber (Launcher
+    /// und App, ab U3) sie nie senkt (Review N-U1-3). Den Wettlauf zwischen Lesen und Umbenennen schließt nur die
+    /// gemeinsame Sperre (`lock`): Aufrufer speichern unter ihr.
     pub fn save(&self, dir: &Path) -> Result<(), StateError> {
         let io = |e: std::io::Error| StateError::Io(e.kind());
         std::fs::create_dir_all(dir).map_err(io)?;
-        let tmp = dir.join(format!("{STATE_FILE}.tmp"));
-        let json = serde_json::to_vec_pretty(self).map_err(|_| StateError::Damaged)?;
+        let mut merged = self.clone();
+        if let Some(on_disk) = UpdateState::load(dir).ok().and_then(|s| s.highest_seen()) {
+            merged.note_seen(&on_disk);
+        }
+        // Eigene Nebendatei je Prozess, damit sich zwei Schreiber nicht die halbe Datei überschreiben.
+        let tmp = dir.join(format!("{STATE_FILE}.{}.tmp", std::process::id()));
+        let json = serde_json::to_vec_pretty(&merged).map_err(|_| StateError::Damaged)?;
         std::fs::write(&tmp, json).map_err(io)?;
         std::fs::rename(&tmp, dir.join(STATE_FILE)).map_err(|e| {
             let _ = std::fs::remove_file(&tmp);
