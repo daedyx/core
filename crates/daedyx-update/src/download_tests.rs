@@ -112,7 +112,10 @@ fn leftovers_are_cleaned_but_foreign_files_stay() {
     assert_eq!(clean_leftovers(&dir.path().join("fehlt")), 0);
 }
 
-/// Review N-U1-4, Probe R7: Ist der Update-Ordner eine Verknüpfung (Junction, Symlink), wird im Ziel nichts gelöscht.
+/// Review N-U1-4, Probe R7: Ist der Update-Ordner eine Verknüpfung, wird im Ziel nichts gelöscht. `is_symlink`
+/// erkennt Symlinks und Junctions gleich (von Hand mit `mklink /J` belegt; `Command` ist hier verboten). Ein
+/// Symlink braucht unter Windows Sonderrechte: lokal ohne sie übersprungen, in der CI (`CI` gesetzt) Pflicht.
+#[cfg(windows)]
 #[test]
 fn cleaning_never_follows_a_linked_folder() {
     let root = tempfile::tempdir().unwrap();
@@ -120,26 +123,11 @@ fn cleaning_never_follows_a_linked_folder() {
     fs::create_dir(&target).unwrap();
     fs::write(target.join("wichtig-setup.exe"), b"x").unwrap();
     let link = root.path().join("updates");
-    link_dir(&target, &link);
+    if let Err(e) = std::os::windows::fs::symlink_dir(&target, &link) {
+        assert!(std::env::var_os("CI").is_none(), "in der CI muss der Symlink gelingen: {e}");
+        return;
+    }
     assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink(), "Verknüpfung muss stehen");
     assert_eq!(clean_leftovers(&link), 0);
     assert!(target.join("wichtig-setup.exe").exists());
-}
-
-#[cfg(windows)]
-fn link_dir(target: &Path, link: &Path) {
-    let ok = std::process::Command::new("cmd")
-        .args(["/C", "mklink", "/J"])
-        .arg(link)
-        .arg(target)
-        .output()
-        .unwrap()
-        .status
-        .success();
-    assert!(ok, "Junction anlegen");
-}
-
-#[cfg(unix)]
-fn link_dir(target: &Path, link: &Path) {
-    std::os::unix::fs::symlink(target, link).unwrap();
 }
