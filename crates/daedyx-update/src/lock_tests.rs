@@ -59,3 +59,44 @@ fn the_shared_folder_is_the_same_for_app_and_launcher() {
     let base = Path::new("lokal");
     assert_eq!(shared_lock_dir(base), base.join("daedyx").join("locks"));
 }
+
+/// Review N-U1-2, Probe R5: Wer seine Sperre verloren hat, löscht beim Fallenlassen nicht die des Nachfolgers.
+#[test]
+fn a_holder_whose_lock_was_taken_over_does_not_free_the_new_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let slow = Lock::acquire(dir.path(), "desk").unwrap();
+    age(&dir.path().join("desk.lock"), 2 * 60 * 60);
+    let next = Lock::acquire(dir.path(), "desk").unwrap();
+    slow.touch();
+    drop(slow);
+    assert_eq!(Lock::acquire(dir.path(), "desk").unwrap_err(), LockError::Busy);
+    drop(next);
+    assert!(Lock::acquire(dir.path(), "desk").is_ok());
+}
+
+#[test]
+fn every_lock_carries_its_own_token() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("desk.lock");
+    let first = Lock::acquire(dir.path(), "desk").unwrap();
+    let one = std::fs::read(&path).unwrap();
+    drop(first);
+    let _second = Lock::acquire(dir.path(), "desk").unwrap();
+    let two = std::fs::read(&path).unwrap();
+    assert!(!one.is_empty() && !two.is_empty());
+    assert_ne!(one, two);
+}
+
+/// Wettlauf: Hat ein anderer die alte Sperre schon ersetzt, darf die Übernahme dessen frische Sperre nicht löschen.
+#[test]
+fn a_takeover_never_removes_a_lock_that_changed_meanwhile() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("desk.lock");
+    std::fs::write(&path, b"frisch").unwrap();
+    assert!(!take_over(&path, b"alt", "eigen").unwrap());
+    assert_eq!(std::fs::read(&path).unwrap(), b"frisch");
+    let names: Vec<_> = std::fs::read_dir(dir.path()).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(names, ["desk.lock"], "keine Nebendatei bleibt liegen");
+    assert!(take_over(&path, b"frisch", "eigen").unwrap());
+    assert!(!path.exists());
+}
