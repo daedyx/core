@@ -99,7 +99,17 @@ fn a_padded_entry_at_exactly_64_kb_is_read() {
 
 #[test]
 fn notes_are_plain_text() {
-    for bad in ["a\u{0}b", "a\u{1b}[31m", "a\rb", "a\u{202E}b", "a\u{2066}b", "a\u{7f}"] {
+    for bad in [
+        "a\u{0}b",
+        "a\u{1b}[31m",
+        "a\rb",
+        "a\u{202E}b",
+        "a\u{2066}b",
+        "a\u{7f}",
+        "a\u{061C}b",
+        "a\u{200B}b",
+        "a\u{2028}b",
+    ] {
         assert_eq!(parse_value(&with(&["notes"], json!(bad))), Err(EntryError::Field("notes")), "{bad:?}");
     }
     let long: String = "ä".repeat(MAX_NOTES_CHARS + 1);

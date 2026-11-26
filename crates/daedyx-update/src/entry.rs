@@ -4,6 +4,7 @@
 //! schützen trotzdem für sich allein (Fuzz-Ziel `catalog_entry`).
 use crate::entry_raw::{object_shape, RawEntry, RawPackage};
 use crate::policy::{Platform, UpdatePolicy};
+use crate::text::plain;
 use crate::version::{self, Version};
 
 /// Höchstgröße von `entry.json`.
@@ -51,7 +52,7 @@ pub struct Package {
 pub struct Entry {
     pub version: Version,
     pub date: String,
-    /// Reiner Text, ohne Steuer- und Richtungszeichen; die Oberfläche zeigt ihn ohne Links und Markdown.
+    /// Reiner Text (`text::plain`), ohne Steuer- und unsichtbare Format-Zeichen; die Oberfläche zeigt ihn ohne Links und Markdown.
     pub notes: String,
     /// Nur ein deutlicherer Hinweis (U-F5), nie erzwungen.
     pub important: bool,
@@ -79,14 +80,6 @@ pub enum EntryError {
     NoPackage,
     #[error("package address is not on this app's release path")]
     Url,
-}
-
-fn printable(s: &str, allow_newline: bool) -> bool {
-    s.chars().all(|c| {
-        let bidi = matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}');
-        let control = c.is_control() && !(allow_newline && matches!(c, '\n' | '\t'));
-        !bidi && !control
-    })
 }
 
 fn date_ok(d: &str) -> bool {
@@ -147,7 +140,7 @@ pub fn parse(bytes: &[u8], policy: &UpdatePolicy) -> Result<Entry, EntryError> {
     if !date_ok(&raw.date) {
         return Err(EntryError::Field("date"));
     }
-    if raw.notes.chars().count() > MAX_NOTES_CHARS || !printable(&raw.notes, true) {
+    if raw.notes.chars().count() > MAX_NOTES_CHARS || !plain(&raw.notes, true) {
         return Err(EntryError::Field("notes"));
     }
     let min_launcher_version = match &raw.min_launcher_version {
@@ -155,7 +148,7 @@ pub fn parse(bytes: &[u8], policy: &UpdatePolicy) -> Result<Entry, EntryError> {
         None => None,
     };
     if let Some(k) = &raw.registry_key
-        && (k.is_empty() || k.len() > 200 || k.contains('\\') || !printable(k, false))
+        && (k.is_empty() || k.len() > 200 || k.contains('\\') || !plain(k, false))
     {
         return Err(EntryError::Field("registryKey"));
     }

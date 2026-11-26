@@ -13,6 +13,7 @@ pub mod lock;
 pub mod policy;
 pub mod reason;
 pub mod state;
+mod text;
 pub mod version;
 
 #[cfg(feature = "fuzzing")]
