@@ -39,10 +39,10 @@ Tabelle von `docs/SICHERHEIT-AUSNAHMEN.md` (dort wäre eine Zeile ohne Stelle ro
   kein unabhängiges Audit. Ausgleich: exakte Version, Fälschungsmatrix als Dauertest (`attest_tests.rs`),
   Prüfsumme und Größe aus `entry.json` als zweite Prüfung, Ersatz `sigstore-verify` vorbereitet (nur `attest.rs`
   betroffen). `cargo vet` gibt es im Kern noch nicht (ungeprüft). Wiedervorlage alle 3 Monate oder bei
-  Ankündigung von Rekor v2. Eingetragen 2026-11-26, Ablauf 2027-02-26. **Ja des Betreuers ausstehend.**
+  Ankündigung von Rekor v2. Eingetragen 2026-11-26, Ablauf 2027-02-26. **Ja des Betreuers 2026-11-26.**
 - **U-A2** – Regel „Version mindestens 14 Tage alt“ (SICHERHEIT 4.1). Der Plan sah `x509-cert` 0.3.0 vor; offline
   liegt nur 0.3.1 (vom 2026-11-20) im Cache, also nimmt das Lockfile 0.3.1. Sie ist am 2026-12-04 14 Tage alt; bis
-  dahin gilt die Ausnahme. Eingetragen 2026-11-26, Ablauf 2026-12-04. **Ja des Betreuers ausstehend.**
+  dahin gilt die Ausnahme. Eingetragen 2026-11-26, Ablauf 2026-12-04. **Ja des Betreuers 2026-11-26.**
 
 ## xtask
 Keine Abhängigkeiten (nur Standardbibliothek).
