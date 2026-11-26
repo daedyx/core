@@ -131,8 +131,12 @@ fn is_ours(name: &str) -> bool {
 }
 
 /// Räumt beim Start alte Setups und abgebrochene Downloads im Update-Ordner auf. Liefert die Zahl gelöschter
-/// Dateien; Unterordner und fremde Dateien bleiben.
+/// Dateien; Unterordner und fremde Dateien bleiben. Ist `dir` eine Verknüpfung (Junction, Symlink), geschieht nichts
+/// (Review N-U1-4). Nur unter der gemeinsamen Sperre (`lock`) aufrufen, sonst verschwindet ein laufender Download.
 pub fn clean_leftovers(dir: &Path) -> usize {
+    if fs::symlink_metadata(dir).is_ok_and(|m| m.file_type().is_symlink()) {
+        return 0;
+    }
     let Ok(list) = fs::read_dir(dir) else { return 0 };
     list.filter_map(Result::ok)
         .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
