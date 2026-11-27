@@ -44,10 +44,10 @@ Längen in `validate.rs`, Tiefe 1000 in `tree.rs`). Zusammenziehen gehört zum G
 
 `cargo xtask scan` meldet: private Schlüssel und Token, Mailadressen außer `example.com/.org/.net`, `.example`,
 `.test`, `.invalid`, `.localhost` und GitHub-noreply, Benutzerordner (`X:\Users\name`, `/Users/name`,
-`/home/name`), private IP-Netze, Namen echter Organisationen, verbotene Dateitypen (Datenbanken, Mails, Kalender,
+`/home/name`), private IP-Netze, verbotene Dateitypen (Datenbanken, Mails, Kalender,
 Kontakte, Schlüssel) außer unter `testdata/erfunden/`, Dateien über 1 MB, `CLAUDE.md` im Git und Secrets in
-Workflows. Echte Namen stehen nur in einer **lokalen** Wortliste außerhalb des Repos
-(`%APPDATA%\Daedyx\verboten.txt` oder Umgebungsvariable `DAEDYX_SCAN_WORDS`), nie in Git und nie in CI.
+Workflows. Echte Namen von Personen, Orten und Organisationen stehen nur in einer **lokalen** Wortliste außerhalb des Repos
+(`%APPDATA%\Daedyx\verboten.txt` oder Umgebungsvariable `DAEDYX_SCAN_WORDS`), nie in Git und nie in CI. Wörter bis vier Zeichen (Kürzel) zählen dort nur als ganzes Wort.
 Der Fundtext wird nie ausgegeben, nur Datei, Zeile und Regel.
 Gelesen wird jede Datei als Text: UTF-16 mit BOM (LE und BE) als UTF-16, sonst UTF-8 mit Ersatzzeichen für
 ungültige Bytes (z. B. Windows-1252). Als binär gelten nur Bild- und Schrift-Endungen (`png`, `jpg`, `jpeg`, `gif`,
